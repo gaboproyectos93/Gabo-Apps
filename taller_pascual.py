@@ -229,7 +229,8 @@ def render_app():
 
     def generar_pdf_pascual(datos_cliente, datos_vehiculo, productos, servicios, descuento_pct, correlativo_final):
         pdf = PDF(correlativo=correlativo_final)
-        pdf.add_page(); pdf.set_auto_page_break(auto=True, margin=20) 
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=20) 
         
         pdf.set_y(63)
         pdf.set_font('Arial', 'B', 9)
@@ -269,17 +270,22 @@ def render_app():
         if tiene_siniestro: fila_dinamica_vehiculo(" N° Siniestro", str(datos_vehiculo.get('siniestro', '')).upper(), "", "", is_last=True)
         pdf.ln(6)
 
-        pdf.set_font('Arial', 'B', 9); pdf.set_fill_color(230, 230, 230)
+        # --- CABECERA DE LA TABLA 5 COLUMNAS ---
+        pdf.set_font('Arial', 'B', 9)
+        pdf.set_fill_color(230, 230, 230)
         pdf.cell(90, 7, "Descripción", 1, 0, 'C', 1)
         pdf.cell(15, 7, "Cant.", 1, 0, 'C', 1)
         pdf.cell(25, 7, "Unitario", 1, 0, 'C', 1)
         pdf.cell(25, 7, "Desc. %", 1, 0, 'C', 1)
         pdf.cell(35, 7, "Total", 1, 1, 'C', 1)
         
-        total_bruto = 0
+        # --- SOLUCIÓN ERROR ROJO: VARIABLES DECLARADAS EXPLÍCITAMENTE ---
+        total_descuento_aplicado = 0
+        total_bruto_sin_desc = 0
 
         def imprimir_fila_item(desc, cant, unitario, total_sin_desc):
-            x = pdf.get_x(); y = pdf.get_y()
+            x = pdf.get_x()
+            y = pdf.get_y()
             pdf.multi_cell(90, 6, desc, 1, 'L')
             h = pdf.get_y() - y
             pdf.set_xy(x + 90, y)
@@ -297,16 +303,24 @@ def render_app():
             return monto_desc_item, total_sin_desc
 
         if productos:
-            pdf.set_font('Arial', 'B', 8); pdf.set_fill_color(245, 245, 245); pdf.cell(190, 5, "  PRODUCTOS / REPUESTOS", 1, 1, 'L', 1); pdf.set_font('Arial', '', 9)
+            pdf.set_font('Arial', 'B', 8)
+            pdf.set_fill_color(245, 245, 245)
+            pdf.cell(190, 5, "  PRODUCTOS / REPUESTOS", 1, 1, 'L', 1)
+            pdf.set_font('Arial', '', 9)
             for item in productos:
                 m_desc, t_sin_desc = imprimir_fila_item(item['Descripción'].upper(), item['Cantidad'], item['Unitario'], item['Total'])
-                total_descuento_aplicado += m_desc; total_bruto_sin_desc += t_sin_desc
+                total_descuento_aplicado += m_desc
+                total_bruto_sin_desc += t_sin_desc
                 
         if servicios:
-            pdf.set_font('Arial', 'B', 8); pdf.set_fill_color(245, 245, 245); pdf.cell(190, 5, "  MANO DE OBRA / SERVICIOS", 1, 1, 'L', 1); pdf.set_font('Arial', '', 9)
+            pdf.set_font('Arial', 'B', 8)
+            pdf.set_fill_color(245, 245, 245)
+            pdf.cell(190, 5, "  MANO DE OBRA / SERVICIOS", 1, 1, 'L', 1)
+            pdf.set_font('Arial', '', 9)
             for item in servicios:
                 m_desc, t_sin_desc = imprimir_fila_item(item['Descripción'].upper(), item['Cantidad'], item['Unitario'], item['Total'])
-                total_descuento_aplicado += m_desc; total_bruto_sin_desc += t_sin_desc
+                total_descuento_aplicado += m_desc
+                total_bruto_sin_desc += t_sin_desc
 
         total_final_a_pagar = total_bruto_sin_desc - total_descuento_aplicado
         neto = total_final_a_pagar / 1.19
@@ -385,7 +399,7 @@ def render_app():
             c_e1.button("Ventana Lateral Izq", type=btn_type("VENTANA LATERAL IZQUIERDA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL IZQUIERDA",))
             c_e2.button("Ventana Lateral Der", type=btn_type("VENTANA LATERAL DERECHA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL DERECHA",))
             
-            # --- RESTAURACIÓN: CÁMARA Y SENSOR ---
+            # --- RESTAURACIÓN CÁMARA Y SENSOR ---
             camara_sel = "No"
             sensor_sel = "No"
             if any("PARABRISAS" in c for c in st.session_state.cristales_sel):
@@ -400,11 +414,11 @@ def render_app():
             for i, cristal in enumerate(cristales_a_procesar):
                 desc_sug = f"{cristal} {marca_final} {modelo_final}".strip()
                 
-                # Agrega sufijos de cámara y sensor si aplica
+                # Inyección automática de sufijos de parabrisas
                 if "PARABRISAS" in cristal:
                     if camara_sel == "Sí": desc_sug += " C/CÁMARA"
                     if sensor_sel == "Sí": desc_sug += " C/SENSOR"
-                
+                    
                 col_p1, col_p2, col_p3 = st.columns([3, 1, 1.5])
                 d_p = col_p1.text_input(f"Descripción Item {i+1}", value=desc_sug, key=f"d_p_{cristal}_{i}")
                 q_p = col_p2.number_input("Cant.", 1, 10, key=f"q_p_{cristal}_{i}")
@@ -443,7 +457,7 @@ def render_app():
         # TOTAL Y WHATSAPP
         total_bruto = sum(x['Total'] for x in st.session_state.items_productos + st.session_state.items_servicios)
         
-        # --- SOLUCIÓN ERROR UNBOUND LOCAL: Variables declaradas fuera del IF ---
+        # --- PROTECCIÓN PARA VARIABLES GLOBALES DE TOTAL ---
         t_final = total_bruto
         desc_pct = 0
         
