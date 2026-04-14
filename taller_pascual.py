@@ -51,7 +51,7 @@ def render_app():
                 remitente_sistema = st.secrets["email"]["user"]
                 password = st.secrets["email"]["password"]
                 msg = MIMEMultipart()
-                msg['From'] = f"Sistema Cotizaciones Pascual Parabrisas <{remitente_sistema}>"
+                msg['From'] = f"Sistema Presupuestos Pascual <{remitente_sistema}>"
                 msg['To'] = destinatario
                 msg['Subject'] = asunto
                 msg.add_header('reply-to', email_real_local) 
@@ -205,7 +205,7 @@ def render_app():
         st.rerun()
 
     # ==========================================
-    # 4. CLASE PDF (DISEÑO COMPLETO RESTAURADO)
+    # 4. CLASE PDF Y DISEÑO MEJORADO
     # ==========================================
     class PDF(FPDF):
         def __init__(self, correlativo=""):
@@ -228,8 +228,9 @@ def render_app():
             self.set_draw_color(255, 108, 21)
             self.set_line_width(0.4)
             
-            self.set_font('Arial', 'B', 16)
-            self.cell(60, 10, "COTIZACIÓN", 'LTR', 1, 'C') 
+            # --- CAMBIO 2: TÍTULO A PRESUPUESTO ---
+            self.set_font('Arial', 'B', 15)
+            self.cell(60, 10, "PRESUPUESTO", 'LTR', 1, 'C') 
             
             self.set_x(140)
             self.set_font('Arial', 'B', 14)
@@ -272,6 +273,7 @@ def render_app():
             if is_last: pdf.line(10, max_y, 200, max_y)
             pdf.set_xy(10, max_y)
 
+        # BLOQUES DE DATOS (CLIENTE Y VEHÍCULO)
         pdf.set_y(70); pdf.set_font('Arial', 'B', 10); pdf.set_fill_color(230, 230, 230); pdf.cell(190, 6, "  DATOS DEL CLIENTE", 1, 1, 'L', 1)
         fila_dinamica_cliente(" Señor(es)", str(datos_cliente.get('nombre', '')).upper(), " Fecha Emisión", datetime.now().strftime('%d/%m/%Y'))
         fila_dinamica_cliente(" RUT", str(datos_cliente.get('rut', '')).upper(), " Teléfono", str(datos_cliente.get('fono', '')))
@@ -287,38 +289,57 @@ def render_app():
         if tiene_siniestro: fila_dinamica_vehiculo(" N° Siniestro", str(datos_vehiculo.get('siniestro', '')).upper(), "", "", is_last=True)
         pdf.ln(6)
 
+        # --- CAMBIO 3: TABLA DE PRECIOS CON 5 COLUMNAS ---
         pdf.set_font('Arial', 'B', 9); pdf.set_fill_color(230, 230, 230)
-        pdf.cell(130, 7, "Descripción", 1, 0, 'C', 1); pdf.cell(15, 7, "Cant.", 1, 0, 'C', 1); pdf.cell(45, 7, "Total", 1, 1, 'C', 1)
+        pdf.cell(90, 7, "Descripción", 1, 0, 'C', 1)
+        pdf.cell(15, 7, "Cant.", 1, 0, 'C', 1)
+        pdf.cell(25, 7, "Unitario", 1, 0, 'C', 1)
+        pdf.cell(25, 7, "Desc. %", 1, 0, 'C', 1)
+        pdf.cell(35, 7, "Total", 1, 1, 'C', 1)
         
         total_descuento_aplicado = 0; total_bruto_sin_desc = 0
 
-        def imprimir_fila_item(desc, cant, total):
-            x = pdf.get_x(); y = pdf.get_y(); pdf.multi_cell(130, 6, desc, 1, 'L'); h = pdf.get_y() - y; pdf.set_xy(x + 130, y)
-            monto_desc_item = total * (descuento_pct / 100.0); total_final_item = total - monto_desc_item
-            pdf.cell(15, h, str(cant), 1, 0, 'C'); pdf.cell(45, h, format_clp(total_final_item), 1, 1, 'R'); pdf.set_xy(x, y + h)
-            return monto_desc_item
+        def imprimir_fila_item(desc, cant, unitario, total_sin_desc):
+            x = pdf.get_x(); y = pdf.get_y()
+            pdf.multi_cell(90, 6, desc, 1, 'L')
+            h = pdf.get_y() - y
+            pdf.set_xy(x + 90, y)
+            
+            monto_desc_item = total_sin_desc * (descuento_pct / 100.0)
+            total_final_item = total_sin_desc - monto_desc_item
+
+            pdf.cell(15, h, str(cant), 1, 0, 'C')
+            pdf.cell(25, h, format_clp(unitario), 1, 0, 'R')
+            # Muestra el porcentaje de descuento en la fila
+            texto_desc_fila = f"{descuento_pct}%" if descuento_pct > 0 else "-"
+            pdf.cell(25, h, texto_desc_fila, 1, 0, 'C')
+            pdf.cell(35, h, format_clp(total_final_item), 1, 1, 'R')
+            
+            pdf.set_xy(x, y + h)
+            return monto_desc_item, total_sin_desc
 
         if productos:
             pdf.set_font('Arial', 'B', 8); pdf.set_fill_color(245, 245, 245); pdf.cell(190, 5, "  PRODUCTOS / REPUESTOS", 1, 1, 'L', 1); pdf.set_font('Arial', '', 9)
             for item in productos:
-                monto_desc = imprimir_fila_item(item['Descripción'].upper(), item['Cantidad'], item['Total'])
-                total_descuento_aplicado += monto_desc; total_bruto_sin_desc += item['Total']
+                m_desc, t_sin_desc = imprimir_fila_item(item['Descripción'].upper(), item['Cantidad'], item['Unitario'], item['Total'])
+                total_descuento_aplicado += m_desc; total_bruto_sin_desc += t_sin_desc
                 
         if servicios:
             pdf.set_font('Arial', 'B', 8); pdf.set_fill_color(245, 245, 245); pdf.cell(190, 5, "  MANO DE OBRA / SERVICIOS", 1, 1, 'L', 1); pdf.set_font('Arial', '', 9)
             for item in servicios:
-                monto_desc = imprimir_fila_item(item['Descripción'].upper(), item['Cantidad'], item['Total'])
-                total_descuento_aplicado += monto_desc; total_bruto_sin_desc += item['Total']
+                m_desc, t_sin_desc = imprimir_fila_item(item['Descripción'].upper(), item['Cantidad'], item['Unitario'], item['Total'])
+                total_descuento_aplicado += m_desc; total_bruto_sin_desc += t_sin_desc
 
         total_final_a_pagar = total_bruto_sin_desc - total_descuento_aplicado
         neto = total_final_a_pagar / 1.19; iva = total_final_a_pagar - neto
         
+        # --- TOTALES ALINEADOS A LA DERECHA CON PORCENTAJE ---
         pdf.ln(5)
-        pdf.set_x(140); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, "SUB TOTAL", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(30, 6, format_clp(total_bruto_sin_desc), 1, 1, 'R')
-        pdf.set_x(140); pdf.set_font('Arial', 'B', 9); texto_desc = f"DESC. ({descuento_pct}%)" if descuento_pct > 0 else "DESCUENTO"; pdf.cell(30, 6, texto_desc, 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(30, 6, format_clp(total_descuento_aplicado), 1, 1, 'R')
-        pdf.set_x(140); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, "NETO", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(30, 6, format_clp(neto), 1, 1, 'R')
-        pdf.set_x(140); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, "I.V.A. (19%)", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(30, 6, format_clp(iva), 1, 1, 'R')
-        pdf.set_x(140); pdf.set_font('Arial', 'B', 10); pdf.set_fill_color(230, 230, 230); pdf.cell(30, 8, "TOTAL", 1, 0, 'L', 1); pdf.cell(30, 8, format_clp(total_final_a_pagar), 1, 1, 'R', 1)
+        pdf.set_x(130); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, "SUB TOTAL", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(40, 6, format_clp(total_bruto_sin_desc), 1, 1, 'R')
+        pdf.set_x(130); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, f"DESC. ({descuento_pct}%)", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(40, 6, format_clp(total_descuento_aplicado), 1, 1, 'R')
+        pdf.set_x(130); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, "NETO", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(40, 6, format_clp(neto), 1, 1, 'R')
+        pdf.set_x(130); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, "I.V.A. (19%)", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(40, 6, format_clp(iva), 1, 1, 'R')
+        pdf.set_x(130); pdf.set_font('Arial', 'B', 10); pdf.set_fill_color(230, 230, 230); pdf.cell(30, 8, "TOTAL", 1, 0, 'L', 1); pdf.cell(40, 8, format_clp(total_final_a_pagar), 1, 1, 'R', 1)
 
         return pdf.output(dest='S').encode('latin-1')
 
@@ -519,11 +540,12 @@ def render_app():
             st.success("👇 Usa el ícono de copiar en la esquina superior derecha del cuadro gris y pégalo en WhatsApp:")
             st.code(msg_wsp, language="text")
 
-            # --- SECCIÓN 4: PDF FORMAL (EXPANDER COMPLETAMENTE RESTAURADO) ---
+            # --- CAMBIO 1: SECCIÓN 4: PDF FORMAL CON CONTACTOS RESTAURADOS ---
             st.markdown("---")
             with st.expander("🏢 Habilitar Cotización Formal (PDF para Empresas / Seguros)", expanded=False):
                 st.info("Solo llena estos datos si el cliente necesita el documento PDF con membrete y RUT.")
                 
+                # Carga de contactos guardados
                 clientes_db = obtener_clientes()
                 clientes_dict = {}
                 for c in clientes_db:
@@ -571,7 +593,10 @@ def render_app():
                             datos_vehiculo = {"marca": marca_final if marca_final not in ["--- Seleccione Marca ---", "--- AGREGAR OTRA MARCA ---", "---"] else "", "modelo": modelo_final if modelo_final not in ["---", "--- AGREGAR OTRO MODELO ---"] else "", "anio": anio_final if anio_final not in ["---", "OTRO (MÁS ANTIGUO)"] else "", "patente": formato_patente_chilena(patente_final), "siniestro": siniestro_val.upper()}
                             
                             pdf_bytes = generar_pdf_pascual(datos_cliente, datos_vehiculo, st.session_state.items_productos, st.session_state.items_servicios, descuento_pct, correlativo)
-                            nombre_pdf = f"Cotizacion_{correlativo}_{patente_final if patente_final else cliente_final}.pdf"
+                            
+                            # --- CAMBIO 2: NOMENCLATURA DEL ARCHIVO ---
+                            patente_doc = patente_final if patente_final else "SinPatente"
+                            nombre_pdf = f"Presupuesto {correlativo} - {patente_doc}.pdf"
                             
                             asunto_resp = f"📁 RESPALDO PASCUAL: {nombre_pdf}"
                             mensaje_resp = f"Copia de seguridad automática.\n\nVehículo: {datos_vehiculo['marca']} {datos_vehiculo['modelo']}\nCliente: {datos_cliente['nombre']}\nTotal: {format_clp(total_final_vista)}\n\nEl archivo PDF va adjunto."
