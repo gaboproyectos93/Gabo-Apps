@@ -71,7 +71,6 @@ def render_app():
     if 'items_servicios' not in st.session_state: st.session_state.items_servicios = []
     if 'servicio_desc' not in st.session_state: st.session_state.servicio_desc = ""
 
-    # Función Callback para pintar el botón al instante
     def toggle_cristal(cristal):
         if cristal in st.session_state.cristales_sel: 
             st.session_state.cristales_sel.remove(cristal)
@@ -277,7 +276,7 @@ def render_app():
         pdf.cell(25, 7, "Desc. %", 1, 0, 'C', 1)
         pdf.cell(35, 7, "Total", 1, 1, 'C', 1)
         
-        total_descuento_aplicado = 0; total_bruto_sin_desc = 0
+        total_bruto = 0
 
         def imprimir_fila_item(desc, cant, unitario, total_sin_desc):
             x = pdf.get_x(); y = pdf.get_y()
@@ -372,7 +371,6 @@ def render_app():
         with tab1:
             st.markdown("<div style='text-align: center; color: gray; font-weight: bold;'>PRINCIPALES</div>", unsafe_allow_html=True)
             cf1, cf2 = st.columns(2)
-            # --- CAMBIO APLICADO: on_click para actualización instantánea de botones ---
             cf1.button("🟩 PARABRISAS", type=btn_type("PARABRISAS"), use_container_width=True, on_click=toggle_cristal, args=("PARABRISAS",))
             cf2.button("🟦 LUNETA TRASERA", type=btn_type("LUNETA TRASERA"), use_container_width=True, on_click=toggle_cristal, args=("LUNETA TRASERA",))
 
@@ -383,21 +381,30 @@ def render_app():
             c_d3.button("Ventana D. Der", type=btn_type("VENTANA DEL. DER."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA DEL. DER.",))
             c_d4.button("Aleta D. Der", type=btn_type("ALETA DEL. DER."), use_container_width=True, on_click=toggle_cristal, args=("ALETA DEL. DER.",))
 
-            c_t1, c_t2, c_t3, c_t4 = st.columns(4)
-            c_t1.button("Aleta T. Izq", type=btn_type("ALETA TRAS. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("ALETA TRAS. IZQ.",))
-            c_t2.button("Ventana T. Izq", type=btn_type("VENTANA TRAS. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA TRAS. IZQ.",))
-            c_t3.button("Ventana T. Der", type=btn_type("VENTANA TRAS. DER."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA TRAS. DER.",))
-            c_t4.button("Aleta T. Der", type=btn_type("ALETA TRAS. DER."), use_container_width=True, on_click=toggle_cristal, args=("ALETA TRAS. DER.",))
-
             c_e1, c_e2 = st.columns(2)
             c_e1.button("Ventana Lateral Izq", type=btn_type("VENTANA LATERAL IZQUIERDA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL IZQUIERDA",))
             c_e2.button("Ventana Lateral Der", type=btn_type("VENTANA LATERAL DERECHA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL DERECHA",))
             
+            # --- RESTAURACIÓN: CÁMARA Y SENSOR ---
+            camara_sel = "No"
+            sensor_sel = "No"
+            if any("PARABRISAS" in c for c in st.session_state.cristales_sel):
+                st.markdown("<div style='text-align: center; color: gray; font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 5px;'>OPCIONES DE PARABRISAS</div>", unsafe_allow_html=True)
+                c_cam, c_sen = st.columns(2)
+                camara_sel = c_cam.radio("¿Tiene Cámara?", ["No", "Sí"], horizontal=True)
+                sensor_sel = c_sen.radio("¿Sensor de Lluvia?", ["No", "Sí"], horizontal=True)
+
             cristales_a_procesar = st.session_state.cristales_sel if st.session_state.cristales_sel else ["CRISTAL / REPUESTO"]
             
             productos_temp = []
             for i, cristal in enumerate(cristales_a_procesar):
                 desc_sug = f"{cristal} {marca_final} {modelo_final}".strip()
+                
+                # Agrega sufijos de cámara y sensor si aplica
+                if "PARABRISAS" in cristal:
+                    if camara_sel == "Sí": desc_sug += " C/CÁMARA"
+                    if sensor_sel == "Sí": desc_sug += " C/SENSOR"
+                
                 col_p1, col_p2, col_p3 = st.columns([3, 1, 1.5])
                 d_p = col_p1.text_input(f"Descripción Item {i+1}", value=desc_sug, key=f"d_p_{cristal}_{i}")
                 q_p = col_p2.number_input("Cant.", 1, 10, key=f"q_p_{cristal}_{i}")
@@ -435,6 +442,11 @@ def render_app():
 
         # TOTAL Y WHATSAPP
         total_bruto = sum(x['Total'] for x in st.session_state.items_productos + st.session_state.items_servicios)
+        
+        # --- SOLUCIÓN ERROR UNBOUND LOCAL: Variables declaradas fuera del IF ---
+        t_final = total_bruto
+        desc_pct = 0
+        
         if total_bruto > 0:
             st.divider()
             st.markdown("#### 📱 3. Resumen y Envío Rápido")
