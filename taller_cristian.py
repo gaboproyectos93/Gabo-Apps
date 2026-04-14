@@ -97,10 +97,10 @@ def render_app():
             self.correlativo = correlativo
             self.is_official = official
         def header(self):
-            logo = None
+            logo_christian = None
             for ext in ['.jpg', '.png', '.jpeg']:
-                if os.path.exists("logo" + ext): logo = "logo" + ext
-            if logo: self.image(logo, x=10, y=10, w=70) 
+                if os.path.exists("logo_christian" + ext): logo_christian = "logo_christian" + ext
+            if logo_christian: self.image(logo_christian, x=10, y=10, w=70) 
             self.set_xy(130, 10)
             self.set_text_color(220, 0, 0)
             self.set_font('Arial', 'B', 16)
