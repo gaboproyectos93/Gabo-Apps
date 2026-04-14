@@ -325,7 +325,11 @@ def render_app():
         modelo_sel = c_v2.selectbox("Modelo", modelos_lista, key="v_modelo")
         modelo_final = c_v2.text_input("Modelo Man:", key="v_mod_man").upper() if modelo_sel == "--- AGREGAR OTRO MODELO ---" else modelo_sel
             
-        anio_sel = c_v3.selectbox("Año", ["---"] + list(range(2027, 1980, -1)), key="v_anio")
+        lista_anios = ["---"] + list(range(2027, 1979, -1)) + ["OTRO (MÁS ANTIGUO)"]
+        anio_sel = c_v3.selectbox("Año", lista_anios, key="v_anio")
+        # ¡ESTA FUE LA LÍNEA QUE FALTABA! Solución del NameError
+        anio_final = c_v3.text_input("Escriba el Año:", key="v_anio_man") if anio_sel == "OTRO (MÁS ANTIGUO)" else anio_sel
+            
         patente_final = c_v4.text_input("Patente", key="v_pat").upper()
 
         st.divider()
@@ -480,7 +484,6 @@ def render_app():
                     
                     pdf_bytes = generar_pdf_pascual(datos_cliente, datos_vehiculo, st.session_state.items_productos, st.session_state.items_servicios, desc_pct, corr)
                     
-                    # --- CAMBIO DE NOMBRE DEL ARCHIVO CON VALIDACIÓN ---
                     cliente_limpio = cliente_final.strip().upper().replace("/", "-")
                     pat_format = formato_patente_chilena(patente_final).strip()
                     
