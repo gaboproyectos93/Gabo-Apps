@@ -12,18 +12,12 @@ import re
 from oauth2client.service_account import ServiceAccountCredentials
 from PIL import Image, ImageOps
 import json
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
 
 def render_app():
     # ==========================================
     # 1. CONFIGURACIÓN Y CONSTANTES
     # ==========================================
     NOMBRE_HOJA_GOOGLE = "DB_Cotizador_Pascual"
-    DESTINATARIOS_BODEGA = ["c.h.servicioautomotriz@gmail.com", "sistema.cotizador.gp@gmail.com"]
-    EMAIL_REMITENTE_SISTEMA = "c.h.servicioautomotriz@gmail.com" 
     EMPRESA_NOMBRE = "LILY ISABEL UNDA CONTRERAS"
     EMPRESA_GIRO = "VENTA, FABRICACIÓN Y REPARACIÓN DE PARABRISAS Y SUS ACCESORIOS"
     RUT_EMPRESA = "8.810.453-6" 
@@ -101,29 +95,6 @@ def render_app():
                 return gspread.authorize(creds)
             return None
         except: return None
-
-    def enviar_correo(destinatario, asunto, mensaje_texto, pdf_bytes, nombre_archivo, email_real_local):
-        try:
-            if "email" in st.secrets:
-                rem = st.secrets["email"]["user"]
-                pwd = st.secrets["email"]["password"]
-                msg = MIMEMultipart()
-                msg['From'] = f"Pascual Parabrisas <{rem}>"
-                msg['To'] = destinatario
-                msg['Subject'] = asunto
-                msg.add_header('reply-to', email_real_local) 
-                msg.attach(MIMEText(mensaje_texto, 'plain'))
-                adjunto = MIMEApplication(pdf_bytes, _subtype="pdf")
-                adjunto.add_header('Content-Disposition', 'attachment', filename=nombre_archivo)
-                msg.attach(adjunto)
-                server = smtplib.SMTP('smtp.gmail.com', 587)
-                server.starttls()
-                server.login(rem, pwd)
-                server.send_message(msg)
-                server.quit()
-                return True, "Enviado"
-            return False, "Faltan credenciales"
-        except Exception as e: return False, str(e)
 
     def encontrar_imagen(nombre_base):
         for ext in ['.png', '.jpg', '.jpeg']:
@@ -229,8 +200,7 @@ def render_app():
 
     def generar_pdf_pascual(datos_cliente, datos_vehiculo, productos, servicios, descuento_pct, correlativo_final):
         pdf = PDF(correlativo=correlativo_final)
-        pdf.add_page()
-        pdf.set_auto_page_break(auto=True, margin=20) 
+        pdf.add_page(); pdf.set_auto_page_break(auto=True, margin=20) 
         
         pdf.set_y(63)
         pdf.set_font('Arial', 'B', 9)
@@ -279,7 +249,6 @@ def render_app():
         pdf.cell(25, 7, "Desc. %", 1, 0, 'C', 1)
         pdf.cell(35, 7, "Total", 1, 1, 'C', 1)
         
-        # --- SOLUCIÓN ERROR ROJO: VARIABLES DECLARADAS EXPLÍCITAMENTE ---
         total_descuento_aplicado = 0
         total_bruto_sin_desc = 0
 
@@ -399,7 +368,6 @@ def render_app():
             c_e1.button("Ventana Lateral Izq", type=btn_type("VENTANA LATERAL IZQUIERDA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL IZQUIERDA",))
             c_e2.button("Ventana Lateral Der", type=btn_type("VENTANA LATERAL DERECHA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL DERECHA",))
             
-            # --- RESTAURACIÓN CÁMARA Y SENSOR ---
             camara_sel = "No"
             sensor_sel = "No"
             if any("PARABRISAS" in c for c in st.session_state.cristales_sel):
@@ -414,7 +382,6 @@ def render_app():
             for i, cristal in enumerate(cristales_a_procesar):
                 desc_sug = f"{cristal} {marca_final} {modelo_final}".strip()
                 
-                # Inyección automática de sufijos de parabrisas
                 if "PARABRISAS" in cristal:
                     if camara_sel == "Sí": desc_sug += " C/CÁMARA"
                     if sensor_sel == "Sí": desc_sug += " C/SENSOR"
@@ -457,7 +424,6 @@ def render_app():
         # TOTAL Y WHATSAPP
         total_bruto = sum(x['Total'] for x in st.session_state.items_productos + st.session_state.items_servicios)
         
-        # --- PROTECCIÓN PARA VARIABLES GLOBALES DE TOTAL ---
         t_final = total_bruto
         desc_pct = 0
         
@@ -537,7 +503,7 @@ def render_app():
             vendedor_nombre = c_p2.text_input("Vendedor", value="ANA MARIA RIQUELME")
             siniestro_val = st.text_input("N° de Siniestro (Si aplica)")
 
-            if st.button("💾 GENERAR PDF Y RESPALDAR", type="primary", use_container_width=True):
+            if st.button("💾 GENERAR PDF", type="primary", use_container_width=True):
                 if not cliente_final: 
                     st.error("⛔ Ingresa al menos el nombre o Razón Social del cliente.")
                 else:
@@ -570,19 +536,12 @@ def render_app():
                     else:
                         nombre_pdf = f"Presupuesto {corr} - {cliente_limpio}.pdf"
                     
-                    asunto_resp = f"📁 RESPALDO PASCUAL: {nombre_pdf}"
-                    mensaje_resp = f"Copia de seguridad automática.\n\nVehículo: {datos_vehiculo['marca']} {datos_vehiculo['modelo']}\nCliente: {datos_cliente['nombre']}\nTotal: {format_clp(t_final)}\n\nEl archivo PDF va adjunto."
-                    
-                    exito, msj = enviar_correo(", ".join(DESTINATARIOS_BODEGA), asunto_resp, mensaje_resp, pdf_bytes, nombre_pdf, EMAIL_REMITENTE_SISTEMA)
-                    
-                    st.session_state.pdf_ready = {"pdf": pdf_bytes, "nombre": nombre_pdf, "exito": exito, "msj": msj, "corr": corr}
+                    st.session_state.pdf_ready = {"pdf": pdf_bytes, "nombre": nombre_pdf, "corr": corr}
                     st.rerun()
 
             if 'pdf_ready' in st.session_state:
                 d = st.session_state.pdf_ready
                 st.success(f"✅ Presupuesto N° {d['corr']} generado exitosamente.")
-                if d['exito']: st.info("☁️ Respaldo enviado por correo.")
-                else: st.warning(f"⚠️ Error de respaldo: {d['msj']}")
                 
                 c_d1, c_d2 = st.columns(2)
                 with c_d1: st.download_button("📥 DESCARGAR PDF", d['pdf'], d['nombre'], "application/pdf", type="primary", use_container_width=True)
