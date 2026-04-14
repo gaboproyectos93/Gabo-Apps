@@ -30,6 +30,22 @@ def render_app():
     DIRECCION = "Caupolicán 0320 - Temuco" 
     COLOR_HEX = "#ff6c15"
 
+    # Inyección de CSS para el Naranjo Pascual
+    st.markdown(f"""
+    <style>
+        .stButton > button[kind="primary"] {{ 
+            background-color: {COLOR_HEX} !important; 
+            border-color: {COLOR_HEX} !important; 
+            color: white !important; 
+            font-weight: bold; 
+        }}
+        .stButton > button[kind="primary"]:hover {{ 
+            background-color: #E65A0D !important; 
+            border-color: #E65A0D !important; 
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+
     # --- CARGA DINÁMICA DESDE CSV ---
     @st.cache_data(ttl=3600)
     def cargar_base_vehiculos():
@@ -55,9 +71,15 @@ def render_app():
     if 'items_servicios' not in st.session_state: st.session_state.items_servicios = []
     if 'servicio_desc' not in st.session_state: st.session_state.servicio_desc = ""
 
+    # Función Callback para pintar el botón al instante
     def toggle_cristal(cristal):
-        if cristal in st.session_state.cristales_sel: st.session_state.cristales_sel.remove(cristal)
-        else: st.session_state.cristales_sel.append(cristal)
+        if cristal in st.session_state.cristales_sel: 
+            st.session_state.cristales_sel.remove(cristal)
+        else: 
+            st.session_state.cristales_sel.append(cristal)
+
+    def set_servicio(servicio):
+        st.session_state.servicio_desc = servicio
 
     def btn_type(cristal):
         return "primary" if cristal in st.session_state.cristales_sel else "secondary"
@@ -66,6 +88,7 @@ def render_app():
         st.session_state.cristales_sel = []
         st.session_state.items_productos = []
         st.session_state.items_servicios = []
+        st.session_state.servicio_desc = ""
         if 'presupuesto_generado' in st.session_state: del st.session_state['presupuesto_generado']
         st.rerun()
 
@@ -248,43 +271,52 @@ def render_app():
         pdf.ln(6)
 
         pdf.set_font('Arial', 'B', 9); pdf.set_fill_color(230, 230, 230)
-        pdf.cell(100, 7, "Descripción", 1, 0, 'C', 1)
-        pdf.cell(20, 7, "Cant.", 1, 0, 'C', 1)
-        pdf.cell(35, 7, "Unitario", 1, 0, 'C', 1)
+        pdf.cell(90, 7, "Descripción", 1, 0, 'C', 1)
+        pdf.cell(15, 7, "Cant.", 1, 0, 'C', 1)
+        pdf.cell(25, 7, "Unitario", 1, 0, 'C', 1)
+        pdf.cell(25, 7, "Desc. %", 1, 0, 'C', 1)
         pdf.cell(35, 7, "Total", 1, 1, 'C', 1)
         
-        total_bruto = 0
+        total_descuento_aplicado = 0; total_bruto_sin_desc = 0
 
-        def imprimir_fila_item(desc, cant, unitario, total_item):
+        def imprimir_fila_item(desc, cant, unitario, total_sin_desc):
             x = pdf.get_x(); y = pdf.get_y()
-            pdf.multi_cell(100, 6, desc, 1, 'L')
+            pdf.multi_cell(90, 6, desc, 1, 'L')
             h = pdf.get_y() - y
-            pdf.set_xy(x + 100, y)
-            pdf.cell(20, h, str(cant), 1, 0, 'C')
-            pdf.cell(35, h, format_clp(unitario), 1, 0, 'R')
-            pdf.cell(35, h, format_clp(total_item), 1, 1, 'R')
+            pdf.set_xy(x + 90, y)
+            
+            monto_desc_item = total_sin_desc * (descuento_pct / 100.0)
+            total_final_item = total_sin_desc - monto_desc_item
+
+            pdf.cell(15, h, str(cant), 1, 0, 'C')
+            pdf.cell(25, h, format_clp(unitario), 1, 0, 'R')
+            texto_desc_fila = f"{descuento_pct}%" if descuento_pct > 0 else "-"
+            pdf.cell(25, h, texto_desc_fila, 1, 0, 'C')
+            pdf.cell(35, h, format_clp(total_final_item), 1, 1, 'R')
+            
             pdf.set_xy(x, y + h)
-            return total_item
+            return monto_desc_item, total_sin_desc
 
         if productos:
             pdf.set_font('Arial', 'B', 8); pdf.set_fill_color(245, 245, 245); pdf.cell(190, 5, "  PRODUCTOS / REPUESTOS", 1, 1, 'L', 1); pdf.set_font('Arial', '', 9)
             for item in productos:
-                total_bruto += imprimir_fila_item(item['Descripción'].upper(), item['Cantidad'], item['Unitario'], item['Total'])
+                m_desc, t_sin_desc = imprimir_fila_item(item['Descripción'].upper(), item['Cantidad'], item['Unitario'], item['Total'])
+                total_descuento_aplicado += m_desc; total_bruto_sin_desc += t_sin_desc
                 
         if servicios:
             pdf.set_font('Arial', 'B', 8); pdf.set_fill_color(245, 245, 245); pdf.cell(190, 5, "  MANO DE OBRA / SERVICIOS", 1, 1, 'L', 1); pdf.set_font('Arial', '', 9)
             for item in servicios:
-                total_bruto += imprimir_fila_item(item['Descripción'].upper(), item['Cantidad'], item['Unitario'], item['Total'])
+                m_desc, t_sin_desc = imprimir_fila_item(item['Descripción'].upper(), item['Cantidad'], item['Unitario'], item['Total'])
+                total_descuento_aplicado += m_desc; total_bruto_sin_desc += t_sin_desc
 
-        monto_descuento = total_bruto * (descuento_pct / 100.0)
-        total_final_a_pagar = total_bruto - monto_descuento
+        total_final_a_pagar = total_bruto_sin_desc - total_descuento_aplicado
         neto = total_final_a_pagar / 1.19
         iva = total_final_a_pagar - neto
         
         pdf.ln(5)
-        pdf.set_x(130); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, "SUB TOTAL", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(40, 6, format_clp(total_bruto), 1, 1, 'R')
+        pdf.set_x(130); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, "SUB TOTAL", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(40, 6, format_clp(total_bruto_sin_desc), 1, 1, 'R')
         if descuento_pct > 0:
-            pdf.set_x(130); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, f"DESC. ({descuento_pct}%)", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(40, 6, f"- {format_clp(monto_descuento)}", 1, 1, 'R')
+            pdf.set_x(130); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, f"DESC. ({descuento_pct}%)", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(40, 6, f"- {format_clp(total_descuento_aplicado)}", 1, 1, 'R')
         pdf.set_x(130); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, "NETO", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(40, 6, format_clp(neto), 1, 1, 'R')
         pdf.set_x(130); pdf.set_font('Arial', 'B', 9); pdf.cell(30, 6, "I.V.A. (19%)", 1, 0, 'L'); pdf.set_font('Arial', '', 9); pdf.cell(40, 6, format_clp(iva), 1, 1, 'R')
         pdf.set_x(130); pdf.set_font('Arial', 'B', 10); pdf.set_fill_color(230, 230, 230); pdf.cell(30, 8, "TOTAL A PAGAR", 1, 0, 'L', 1); pdf.cell(40, 8, format_clp(total_final_a_pagar), 1, 1, 'R', 1)
@@ -340,23 +372,29 @@ def render_app():
         with tab1:
             st.markdown("<div style='text-align: center; color: gray; font-weight: bold;'>PRINCIPALES</div>", unsafe_allow_html=True)
             cf1, cf2 = st.columns(2)
-            if cf1.button("🟩 PARABRISAS", type=btn_type("PARABRISAS"), use_container_width=True): toggle_cristal("PARABRISAS")
-            if cf2.button("🟦 LUNETA TRASERA", type=btn_type("LUNETA TRASERA"), use_container_width=True): toggle_cristal("LUNETA TRASERA")
+            # --- CAMBIO APLICADO: on_click para actualización instantánea de botones ---
+            cf1.button("🟩 PARABRISAS", type=btn_type("PARABRISAS"), use_container_width=True, on_click=toggle_cristal, args=("PARABRISAS",))
+            cf2.button("🟦 LUNETA TRASERA", type=btn_type("LUNETA TRASERA"), use_container_width=True, on_click=toggle_cristal, args=("LUNETA TRASERA",))
 
             st.markdown("<div style='text-align: center; color: gray; font-weight: bold; margin-top: 10px;'>LATERALES</div>", unsafe_allow_html=True)
             c_d1, c_d2, c_d3, c_d4 = st.columns(4)
-            if c_d1.button("Aleta D. Izq", type=btn_type("ALETA DEL. IZQ."), use_container_width=True): toggle_cristal("ALETA DEL. IZQ.")
-            if c_d2.button("Ventana D. Izq", type=btn_type("VENTANA DEL. IZQ."), use_container_width=True): toggle_cristal("VENTANA DEL. IZQ.")
-            if c_d3.button("Ventana D. Der", type=btn_type("VENTANA DEL. DER."), use_container_width=True): toggle_cristal("VENTANA DEL. DER.")
-            if c_d4.button("Aleta D. Der", type=btn_type("ALETA DEL. DER."), use_container_width=True): toggle_cristal("ALETA DEL. DER.")
+            c_d1.button("Aleta D. Izq", type=btn_type("ALETA DEL. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("ALETA DEL. IZQ.",))
+            c_d2.button("Ventana D. Izq", type=btn_type("VENTANA DEL. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA DEL. IZQ.",))
+            c_d3.button("Ventana D. Der", type=btn_type("VENTANA DEL. DER."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA DEL. DER.",))
+            c_d4.button("Aleta D. Der", type=btn_type("ALETA DEL. DER."), use_container_width=True, on_click=toggle_cristal, args=("ALETA DEL. DER.",))
+
+            c_t1, c_t2, c_t3, c_t4 = st.columns(4)
+            c_t1.button("Aleta T. Izq", type=btn_type("ALETA TRAS. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("ALETA TRAS. IZQ.",))
+            c_t2.button("Ventana T. Izq", type=btn_type("VENTANA TRAS. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA TRAS. IZQ.",))
+            c_t3.button("Ventana T. Der", type=btn_type("VENTANA TRAS. DER."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA TRAS. DER.",))
+            c_t4.button("Aleta T. Der", type=btn_type("ALETA TRAS. DER."), use_container_width=True, on_click=toggle_cristal, args=("ALETA TRAS. DER.",))
 
             c_e1, c_e2 = st.columns(2)
-            if c_e1.button("Ventana Lateral Izq", type=btn_type("VENTANA LATERAL IZQUIERDA"), use_container_width=True): toggle_cristal("VENTANA LATERAL IZQUIERDA")
-            if c_e2.button("Ventana Lateral Der", type=btn_type("VENTANA LATERAL DERECHA"), use_container_width=True): toggle_cristal("VENTANA LATERAL DERECHA")
+            c_e1.button("Ventana Lateral Izq", type=btn_type("VENTANA LATERAL IZQUIERDA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL IZQUIERDA",))
+            c_e2.button("Ventana Lateral Der", type=btn_type("VENTANA LATERAL DERECHA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL DERECHA",))
             
             cristales_a_procesar = st.session_state.cristales_sel if st.session_state.cristales_sel else ["CRISTAL / REPUESTO"]
             
-            # --- ARREGLO DEL BUCLE: Almacenamos temporalmente y ponemos UN SOLO BOTÓN ---
             productos_temp = []
             for i, cristal in enumerate(cristales_a_procesar):
                 desc_sug = f"{cristal} {marca_final} {modelo_final}".strip()
@@ -380,10 +418,10 @@ def render_app():
 
         with tab2:
             c_sf1, c_sf2, c_sf3, c_sf4 = st.columns(4)
-            if c_sf1.button("Instalación", use_container_width=True): st.session_state.servicio_desc = "INSTALACIÓN DE CRISTAL"
-            if c_sf2.button("Piquete", use_container_width=True): st.session_state.servicio_desc = "REPARACIÓN DE PIQUETE"
-            if c_sf3.button("Polarizado", use_container_width=True): st.session_state.servicio_desc = "SERVICIO DE POLARIZADO"
-            if c_sf4.button("Grabado", use_container_width=True): st.session_state.servicio_desc = "GRABADO DE PATENTES"
+            c_sf1.button("Instalación", use_container_width=True, on_click=set_servicio, args=("INSTALACIÓN DE CRISTAL",))
+            c_sf2.button("Piquete", use_container_width=True, on_click=set_servicio, args=("REPARACIÓN DE PIQUETE",))
+            c_sf3.button("Polarizado", use_container_width=True, on_click=set_servicio, args=("SERVICIO DE POLARIZADO",))
+            c_sf4.button("Grabado", use_container_width=True, on_click=set_servicio, args=("GRABADO DE PATENTES",))
             
             col_s1, col_s2, col_s3 = st.columns([3, 1, 1.5])
             d_s = col_s1.text_input("Servicio", value=st.session_state.servicio_desc)
