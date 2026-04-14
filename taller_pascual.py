@@ -327,14 +327,13 @@ def render_app():
             
         lista_anios = ["---"] + list(range(2027, 1979, -1)) + ["OTRO (MÁS ANTIGUO)"]
         anio_sel = c_v3.selectbox("Año", lista_anios, key="v_anio")
-        # ¡ESTA FUE LA LÍNEA QUE FALTABA! Solución del NameError
         anio_final = c_v3.text_input("Escriba el Año:", key="v_anio_man") if anio_sel == "OTRO (MÁS ANTIGUO)" else anio_sel
             
         patente_final = c_v4.text_input("Patente", key="v_pat").upper()
 
         st.divider()
 
-        # SELECTOR DE CRISTALES
+        # SELECTOR DE CRISTALES Y SERVICIOS
         st.markdown("#### 🪟 2. Trabajos y Repuestos")
         tab1, tab2 = st.tabs(["📦 Selector de Cristales", "🔧 Servicios Extras"])
         
@@ -356,15 +355,28 @@ def render_app():
             if c_e2.button("Ventana Lateral Der", type=btn_type("VENTANA LATERAL DERECHA"), use_container_width=True): toggle_cristal("VENTANA LATERAL DERECHA")
             
             cristales_a_procesar = st.session_state.cristales_sel if st.session_state.cristales_sel else ["CRISTAL / REPUESTO"]
+            
+            # --- ARREGLO DEL BUCLE: Almacenamos temporalmente y ponemos UN SOLO BOTÓN ---
+            productos_temp = []
             for i, cristal in enumerate(cristales_a_procesar):
                 desc_sug = f"{cristal} {marca_final} {modelo_final}".strip()
                 col_p1, col_p2, col_p3 = st.columns([3, 1, 1.5])
-                d_p = col_p1.text_input(f"Descripción Item {i}", value=desc_sug, key=f"d_p_{cristal}_{i}")
+                d_p = col_p1.text_input(f"Descripción Item {i+1}", value=desc_sug, key=f"d_p_{cristal}_{i}")
                 q_p = col_p2.number_input("Cant.", 1, 10, key=f"q_p_{cristal}_{i}")
                 p_p = col_p3.number_input("Unitario c/IVA $", 0, step=5000, key=f"p_p_{cristal}_{i}")
-                if st.button(f"➕ Agregar {cristal}", key=f"btn_add_{cristal}_{i}", use_container_width=True):
-                    st.session_state.items_productos.append({"Descripción": d_p, "Cantidad": q_p, "Unitario": p_p, "Total": p_p * q_p})
-                    st.session_state.cristales_sel = []; st.rerun()
+                productos_temp.append({"desc": d_p, "cant": q_p, "precio": p_p})
+                
+            if st.button("➕ Agregar Productos al Resumen", type="primary", use_container_width=True):
+                for p in productos_temp:
+                    if p['desc'] and p['precio'] >= 0:
+                        st.session_state.items_productos.append({
+                            "Descripción": p['desc'], 
+                            "Cantidad": p['cant'], 
+                            "Unitario": p['precio'], 
+                            "Total": p['precio'] * p['cant']
+                        })
+                st.session_state.cristales_sel = []
+                st.rerun()
 
         with tab2:
             c_sf1, c_sf2, c_sf3, c_sf4 = st.columns(4)
@@ -377,9 +389,11 @@ def render_app():
             d_s = col_s1.text_input("Servicio", value=st.session_state.servicio_desc)
             q_s = col_s2.number_input("Cant.", 1, 10, key="q_serv")
             p_s = col_s3.number_input("Unitario c/IVA $", 0, step=5000, key="p_serv")
-            if st.button("➕ Agregar Servicio", use_container_width=True):
-                st.session_state.items_servicios.append({"Descripción": d_s, "Cantidad": q_s, "Unitario": p_s, "Total": p_s * q_s})
-                st.rerun()
+            if st.button("➕ Agregar Servicio", type="primary", use_container_width=True):
+                if d_s and p_s >= 0:
+                    st.session_state.items_servicios.append({"Descripción": d_s, "Cantidad": q_s, "Unitario": p_s, "Total": p_s * q_s})
+                    st.session_state.servicio_desc = ""
+                    st.rerun()
 
         # TOTAL Y WHATSAPP
         total_bruto = sum(x['Total'] for x in st.session_state.items_productos + st.session_state.items_servicios)
