@@ -4,3 +4,4 @@ fpdf
 gspread
 oauth2client
 Pillow
+streamlit-cookies-controller
