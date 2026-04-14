@@ -12,8 +12,6 @@ import re
 from oauth2client.service_account import ServiceAccountCredentials
 from PIL import Image, ImageOps
 import json
-
-# LIBRERÍAS PARA EL ENVÍO DE CORREOS
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -23,15 +21,14 @@ def render_app():
     # ==========================================
     # 1. CONFIGURACIÓN Y CONEXIÓN
     # ==========================================
-    # NOTA: st.set_page_config fue removido porque se controla desde main.py
-
     NOMBRE_HOJA_GOOGLE = "DB_Cotizador"
 
     def conectar_google_sheets():
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         try:
             if "gcp_service_account" in st.secrets:
-                creds_dict = st.secrets["gcp_service_account"]
+                # Aseguramos que el secret se lea como diccionario para evitar errores
+                creds_dict = dict(st.secrets["gcp_service_account"])
                 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
             elif os.path.exists('credentials.json'):
                 creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
@@ -217,6 +214,8 @@ def render_app():
                 
         return None, None
 
+    # --- SOLUCIÓN AL BUG DE LAS SECCIONES DESAPARECIDAS ---
+    @st.cache_data(ttl=60)
     def cargar_datos():
         try:
             client = conectar_google_sheets()
@@ -324,7 +323,7 @@ def render_app():
             self.is_official = official
             
         def header(self):
-            # --- MODIFICADO PARA COMPATIBILIDAD CON LA SUPER APP ---
+            # Adaptado a logo_christian
             logo = encontrar_imagen("logo_christian")
             if logo: 
                 self.image(logo, x=10, y=10, w=70) 
@@ -570,7 +569,6 @@ def render_app():
                     st.rerun()
                 st.markdown("---")
                     
-            # --- MODIFICADO PARA COMPATIBILIDAD CON LA SUPER APP ---
             logo = encontrar_imagen("logo_christian") 
             if logo: 
                 st.image(logo, width=200)
@@ -578,9 +576,8 @@ def render_app():
             st.title("Cotizador Taller")
             st.markdown("#### 1. Identificación del Vehículo")
             
-            # --- NUEVA LÓGICA DE BÚSQUEDA / AUTOCOMPLETADO ---
             pat_texto = st.text_input("Buscar o Ingresar Patente", placeholder="Ej: HXRP10").upper()
-            patente = pat_texto # Por defecto asume lo que escribió
+            patente = pat_texto 
             
             if pat_texto and len(pat_texto) >= 2:
                 df_p = cargar_directorio_patentes()
@@ -588,7 +585,6 @@ def render_app():
                     lista_p = sorted(list(set([str(x).strip().upper() for x in df_p['Patente'].dropna().tolist() if str(x).strip()])))
                     matches = [p for p in lista_p if pat_texto in p and p != pat_texto]
                     
-                    # Si encuentra coincidencias, despliega el menú de sugerencias
                     if matches:
                         sel_sug = st.selectbox("💡 Sugerencias (Selecciona para autocompletar):", ["(Mantener lo que escribí)"] + matches)
                         if sel_sug != "(Mantener lo que escribí)":
@@ -752,7 +748,6 @@ def render_app():
         
         sel_final = []
         
-        # Lógica de pestañas
         if t_cli == "Cliente Particular":
             tabs = st.tabs(["➕ Ingreso Manual", "🛒 Compra Repuestos"])
             with tabs[0]:
