@@ -122,7 +122,7 @@ def render_app():
     # Estructura del nombre de archivo: Maxus_Modelo_Norma_Transmision_Traccion_KM.pdf
     nombre_archivo_pdf = f"Maxus_{clean_str(modelo_sel)}_{clean_str(norma_sel)}_{clean_str(trans_sel)}_{clean_str(tracc_sel)}_{km_formato}.pdf"
     
-    ruta_pdf = os.path.join("pautas", nombre_archivo_pdf)
+    ruta_pdf = os.path.join("Pautas", nombre_archivo_pdf)
 
     if st.button("🔍 Buscar Pauta Técnica", type="primary", use_container_width=True):
         if not tec_nom or not patente:
