@@ -63,6 +63,7 @@ else:
         import taller_pascual
         taller_pascual.render_app()
 
+    
         elif perfil == "gabo":
         menu = st.selectbox("Seleccione Aplicación:", ["C.H. Automotriz", "Pascual Parabrisas", "Pautas Mantención"])
         st.markdown("---")
