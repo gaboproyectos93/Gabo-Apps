@@ -27,7 +27,7 @@ def login():
         
         if st.button("Ingresar", type="primary", use_container_width=True):
             if user in st.secrets["usuarios"] and password == st.secrets["usuarios"][user]:
-                # ¡AQUÍ ESTÁ LA MAGIA! Guardamos el boleto por 30 días (2592000 segundos)
+                # Guardamos el boleto por 30 días (2592000 segundos)
                 controller.set("usuario_gabo_apps", user, max_age=2592000)
                 
                 st.session_state["logueado"] = True
@@ -54,7 +54,7 @@ else:
             time.sleep(0.5)
             st.rerun()
 
-    # --- EL FILTRO DE SEGURIDAD ---
+    # --- EL FILTRO DE SEGURIDAD (Cuidado con los espacios aquí) ---
     if perfil == "cristian":
         import taller_cristian
         taller_cristian.render_app()
@@ -62,17 +62,20 @@ else:
     elif perfil == "pascual":
         import taller_pascual
         taller_pascual.render_app()
-
-    
-        elif perfil == "gabo":
-        menu = st.selectbox("Seleccione Aplicación:", ["C.H. Automotriz", "Pascual Parabrisas", "Pautas Mantención"])
+        
+    elif perfil == "gabo":
+        menu = st.selectbox("Seleccione Aplicación:", ["C.H. Automotriz", "Pascual Parabrisas", "Pautas Maxus"])
         st.markdown("---")
+        
         if menu == "C.H. Automotriz":
             import taller_cristian
             taller_cristian.render_app()
+            
         elif menu == "Pascual Parabrisas":
             import taller_pascual
             taller_pascual.render_app()
-        elif menu == "Pautas Mantención":
+            
+        elif menu == "Pautas Maxus":
+            # Aquí llamamos a la nueva app que creaste
             import mantenimiento
             mantenimiento.render_app()
