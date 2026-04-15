@@ -63,8 +63,8 @@ else:
         import taller_pascual
         taller_pascual.render_app()
         
-    elif perfil == "gabo":
-        menu = st.selectbox("Seleccione Aplicación:", ["C.H. Automotriz", "Pascual Parabrisas", "App Nueva 1", "App Nueva 2", "App Nueva 3"])
+ elif perfil == "gabo":
+        menu = st.selectbox("Seleccione Aplicación:", ["C.H. Automotriz", "Pascual Parabrisas", "Pautas Mantención"])
         st.markdown("---")
         if menu == "C.H. Automotriz":
             import taller_cristian
@@ -72,5 +72,8 @@ else:
         elif menu == "Pascual Parabrisas":
             import taller_pascual
             taller_pascual.render_app()
+        elif menu == "Pautas Mantención":
+            import mantenimiento
+            mantenimiento.render_app()
         else:
             st.info(f"🏗️ La aplicación '{menu}' está en desarrollo.")
