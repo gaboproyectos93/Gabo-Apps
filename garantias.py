@@ -21,7 +21,7 @@ def render_app():
         tecnico = col2.text_input("Nombre del Técnico", placeholder="Ej: Pedro", key="garantia_tec")
 
     # ==========================================
-    # 2. CHECKLIST Y VISTA PREVIA CON ROTACIÓN
+    # 2. CHECKLIST Y VISTA PREVIA
     # ==========================================
     st.markdown("### 📋 Evidencia Fotográfica")
     
@@ -39,28 +39,23 @@ def render_app():
     for key, label in requisitos.items():
         st.markdown(f"**{label.replace('_', ' ')}**")
         
-        # Subida de archivo
         archivo = st.file_uploader(f"Sube la foto para {label}", type=['jpg', 'jpeg', 'png'], key=f"up_{key}", label_visibility="collapsed")
         
         if archivo:
-            # Si es un archivo nuevo, lo cargamos en la sesión
             if f"img_name_{key}" not in st.session_state or st.session_state[f"img_name_{key}"] != archivo.name:
                 img = Image.open(archivo)
-                img = ImageOps.exif_transpose(img) # Corrige la rotación nativa del celular
+                img = ImageOps.exif_transpose(img) 
                 st.session_state[f"img_obj_{key}"] = img
                 st.session_state[f"img_name_{key}"] = archivo.name
 
-            # Mostrar vista previa y botón de rotación
             col_img, col_btn = st.columns([2, 1])
             with col_img:
                 st.image(st.session_state[f"img_obj_{key}"], use_container_width=True)
             with col_btn:
                 if st.button("🔄 Girar 90°", key=f"rot_{key}"):
-                    # Girar la imagen y recargar la pantalla
                     st.session_state[f"img_obj_{key}"] = st.session_state[f"img_obj_{key}"].rotate(-90, expand=True)
                     st.rerun()
             
-            # Guardamos la imagen final lista para el ZIP/PDF
             fotos_procesadas[key] = st.session_state[f"img_obj_{key}"]
             
         st.divider()
@@ -100,16 +95,16 @@ def render_app():
 
     def enviar_correo(zip_bytes):
         try:
-            # Rescatar credenciales de los Secrets
-            sender = st.secrets["email"]["correo_envio"]
-            password = st.secrets["email"]["password_aplicacion"]
-            receiver = st.secrets["email"]["correo_analista"]
+            # 💡 AQUÍ SE ADAPTA EXACTAMENTE A TUS SECRETS ACTUALES
+            sender = st.secrets["email"]["user"]
+            password = st.secrets["email"]["password"]
+            receiver = "gabriel.poblete@kaufmann.cl" # Correo del Analista fijado aquí
             
             msg = EmailMessage()
             msg['Subject'] = f"NUEVA GARANTÍA - OT: {ot} (Técnico: {tecnico})"
             msg['From'] = sender
             msg['To'] = receiver
-            msg.set_content(f"Hola,\n\nSe adjunta el expediente de garantía para la OT {ot}, generado desde la plataforma por el técnico {tecnico}.\n\nEl archivo ZIP contiene el PDF unificado y las fotografías originales.\n\nSaludos.")
+            msg.set_content(f"Hola,\n\nSe adjunta el expediente fotográfico de garantía para la OT {ot}, generado desde la plataforma por el técnico {tecnico}.\n\nEl archivo ZIP contiene el PDF unificado y las fotografías originales para su gestión.\n\nSaludos.")
             
             msg.add_attachment(zip_bytes, maintype='application', subtype='zip', filename=f"Garantia_OT_{ot}.zip")
             
@@ -121,50 +116,45 @@ def render_app():
             return False, str(e)
 
     progreso = len(fotos_procesadas) / len(requisitos)
-    st.progress(progreso, text=f"Fotografías: {len(fotos_procesadas)} de {len(requisitos)}")
+    st.progress(progreso, text=f"Fotografías capturadas: {len(fotos_procesadas)} de {len(requisitos)}")
 
     if st.button("🚀 ENVIAR EXPEDIENTE", type="primary", use_container_width=True):
         if not ot or not tecnico:
             st.error("⛔ Ingresa la OT y el Nombre del Técnico.")
         elif len(fotos_procesadas) < len(requisitos):
-            st.warning("⚠️ Faltan fotografías. Sube las 6 fotos obligatorias.")
+            st.warning("⚠️ Faltan fotografías por subir. Completa el checklist.")
         else:
             if "email" not in st.secrets:
-                st.error("⚠️ Falta configurar las credenciales de correo en los Secrets de Streamlit.")
+                st.error("⚠️ Faltan credenciales de correo en los Secrets.")
                 return
 
-            with st.spinner("📦 Comprimiendo fotos y enviando correo..."):
+            with st.spinner("📦 Comprimiendo fotos y enviando correo al analista..."):
                 try:
-                    # 1. Generar el PDF
+                    # 1. PDF
                     pdf_bytes = compilar_pdf()
                     
-                    # 2. Crear el archivo ZIP en memoria
+                    # 2. ZIP
                     zip_buffer = io.BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                        # Guardar el PDF en el ZIP
                         zip_file.writestr(f"Expediente_OT_{ot}.pdf", pdf_bytes)
-                        
-                        # Guardar cada foto original en el ZIP
                         for k, lbl in requisitos.items():
                             img = fotos_procesadas[k]
                             img_byte_arr = io.BytesIO()
                             img.convert('RGB').save(img_byte_arr, format='JPEG', quality=90)
                             zip_file.writestr(f"{lbl}.jpg", img_byte_arr.getvalue())
-                    
                     zip_bytes = zip_buffer.getvalue()
 
-                    # 3. Enviar el correo
+                    # 3. Correo
                     exito, error_msg = enviar_correo(zip_bytes)
                     
                     if exito:
-                        st.success("✅ ¡Expediente enviado exitosamente al analista de garantías!")
-                        # Opcional: Dejar el botón para que el técnico lo descargue por si acaso
-                        st.download_button("📥 Descargar Copia Local (ZIP)", data=zip_bytes, file_name=f"Copia_OT_{ot}.zip", mime="application/zip", use_container_width=True)
+                        st.success("✅ ¡Expediente enviado exitosamente a gabriel.poblete@kaufmann.cl!")
+                        st.download_button("📥 Descargar Copia Local (Opcional)", data=zip_bytes, file_name=f"Copia_OT_{ot}.zip", mime="application/zip", use_container_width=True)
                     else:
-                        st.error(f"❌ Error al enviar el correo: {error_msg}")
+                        st.error(f"❌ Error de conexión al correo: {error_msg}")
                         
                 except Exception as e:
-                    st.error(f"Error procesando los archivos: {e}")
+                    st.error(f"Error interno procesando los archivos: {e}")
 
 if __name__ == "__main__":
     render_app()
