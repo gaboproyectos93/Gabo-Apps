@@ -95,5 +95,24 @@ else:
 
     # --- NUEVO ACCESO PARA LOS TÉCNICOS ---
     elif perfil == "taller":
-        import garantias
-        garantias.render_app()
+        st.markdown("### 🧑‍🔧 Portal Técnico Kaufmann")
+        st.write("Seleccione la herramienta que necesita utilizar:")
+        
+        # Botones de selección horizontales
+        menu_taller = st.radio(
+            "Seleccionar Herramienta:",
+            ["📋 Plataforma de Garantías", "🛠️ Pautas de Mantenimiento"],
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+        
+        st.divider()
+
+        # Enrutamiento según la opción seleccionada
+        if menu_taller == "📋 Plataforma de Garantías":
+            import garantias
+            garantias.render_app()
+            
+        elif menu_taller == "🛠️ Pautas de Mantenimiento":
+            import mantenimiento
+            mantenimiento.render_app()
