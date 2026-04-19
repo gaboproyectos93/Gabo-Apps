@@ -45,11 +45,11 @@ def render_app():
     st.markdown("### 📋 Evidencia Fotográfica")
     
     requisitos = {
-        "placa_vin": {"label": "1_Placa_VIN", "opcional": False},
-        "tablero": {"label": "2_Tablero_Odometro", "opcional": False},
-        "vehiculo": {"label": "5_Fotografia_Vehiculo", "opcional": False},
-        "diagnostico": {"label": "4_Equipo_Diagnostico", "opcional": True},
-        "repuesto": {"label": "6_Repuesto_Involucrado", "opcional": True}
+        "placa_vin": {"label": "Placa_VIN", "opcional": False},
+        "tablero": {"label": "Tablero_Odometro", "opcional": False},
+        "vehiculo": {"label": "Fotografia_Vehiculo", "opcional": False},
+        "diagnostico": {"label": "Equipo_Diagnostico", "opcional": True},
+        "repuesto": {"label": "Repuesto_Involucrado", "opcional": True}
     }
 
     fotos_procesadas = {}
@@ -93,7 +93,7 @@ def render_app():
                 
         st.divider()
 
-    st.markdown("**3 Libro Mantencion**")
+    st.markdown("**Libro Mantencion**")
     opcion_libro = st.radio("¿Quién adjuntará el libro?", ["Técnico (Subir foto ahora)", "Solicitar a Asesora (Dina Vega)"], horizontal=True)
     
     if opcion_libro == "Técnico (Subir foto ahora)":
