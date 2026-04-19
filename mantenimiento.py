@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import base64  # <-- NUEVA LIBRERÍA PARA EL VISOR PDF
 
 def render_app():
     # ==========================================
@@ -36,7 +37,7 @@ def render_app():
     """, unsafe_allow_html=True)
 
     st.title("🛠️ Pautas de Mantenimiento")
-    st.info("Selecciona los parámetros del vehículo para descargar el PDF oficial.")
+    st.info("Selecciona los parámetros del vehículo para visualizar o descargar el PDF oficial.")
 
     SPREADSHEET_ID = "1jqMJ7i_tS-lpOvlAMAtzwj-Wcpk68arrWBaJOtBVUzA"
 
@@ -65,7 +66,6 @@ def render_app():
                 sheet = client.open_by_key(SPREADSHEET_ID).sheet1
                 data_list = sheet.get_all_values()
                 if data_list:
-                    # Buscador de cabeceras inteligente
                     header_idx = 0
                     for i, row in enumerate(data_list):
                         row_upper = [str(c).strip().upper() for c in row]
@@ -114,23 +114,20 @@ def render_app():
     df_f = df_f[df_f['TRACCION'] == tracc_sel]
 
     # ==========================================
-    # 3. LÓGICA DE BÚSQUEDA CORREGIDA
+    # 3. LÓGICA DE BÚSQUEDA Y VISUALIZACIÓN
     # ==========================================
     st.divider()
 
-    # Función para limpiar el texto y que coincida con el nombre del archivo físico
     def clean(txt):
         return str(txt).strip().replace(" - ", "_").replace(" ", "_").replace("-", "_").replace("/", "_")
 
     if st.button("🔍 Buscar Pauta Técnica", type="primary", use_container_width=True):
         if not df_f.empty:
-            # Primero intentamos usar la columna "NOMBRE ARCHIVO" si está llena
             nombre_db = str(df_f.iloc[0].get('NOMBRE ARCHIVO', '')).strip()
             
             if nombre_db and nombre_db != "" and nombre_db != "nan":
                 nombre_final = nombre_db
             else:
-                # Si está vacía, construimos el nombre automático con el nuevo formato
                 nombre_final = f"Pauta_{clean(marca_sel)}_{clean(modelo_sel)}_{clean(motor_sel)}_{clean(trans_sel)}_{clean(tracc_sel)}.pdf"
             
             ruta_pdf = os.path.join("Pautas", nombre_final)
@@ -147,6 +144,25 @@ def render_app():
                     - **Archivo:** `{nombre_final}`
                     - **Especificación:** {motor_sel} | {trans_sel} | {tracc_sel}
                     """)
+
+                # --- NUEVO: VISOR DE PDF INTEGRADO ---
+                st.markdown("### 👁️ Vista Previa del Documento")
+                
+                # Convertimos los bytes del PDF a formato Base64 para HTML
+                base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+                
+                # Creamos el Iframe con borde gris oscuro para mantener el diseño corporativo
+                pdf_display = f"""
+                <iframe 
+                    src="data:application/pdf;base64,{base64_pdf}#toolbar=0" 
+                    width="100%" 
+                    height="700px" 
+                    style="border: 1px solid #333; border-radius: 8px;" 
+                    type="application/pdf">
+                </iframe>
+                """
+                st.markdown(pdf_display, unsafe_allow_html=True)
+                # -------------------------------------
 
                 st.download_button(
                     label="📥 Descargar Pauta en PDF",
