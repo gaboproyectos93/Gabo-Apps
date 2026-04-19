@@ -97,7 +97,7 @@ def render_app():
     st.markdown("### 🚙 Configuración del Vehículo")
     
     # Verificamos que las columnas necesarias existan en el Excel
-    cols_necesarias = ['MODELO', 'NORMA EMISIONES', 'TRANSMISION', 'TRACCION']
+    cols_necesarias = ['MODELO', 'MOTORIZACION', 'TRANSMISION', 'TRACCION']
     faltan = [c for c in cols_necesarias if c not in df_maxus.columns]
     
     if faltan:
