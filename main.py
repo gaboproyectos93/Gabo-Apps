@@ -64,7 +64,11 @@ else:
         taller_pascual.render_app()
         
     elif perfil == "gabo":
-        menu = st.selectbox("Seleccione Aplicación:", ["C.H. Automotriz", "Pascual Parabrisas", "Pautas Maxus"])
+        menu = st.selectbox("Seleccione Aplicación:", [
+            "C.H. Automotriz", 
+            "Pascual Parabrisas", 
+            "Pautas Maxus", 
+            "Expediente Garantías"])
         st.markdown("---")
         
         if menu == "C.H. Automotriz":
