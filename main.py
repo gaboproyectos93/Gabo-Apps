@@ -68,7 +68,7 @@ else:
             "C.H. Automotriz", 
             "Pascual Parabrisas", 
             "Pautas Maxus", 
-            "Expediente Garantías"])
+            "Expediente de Garantías"])
         st.markdown("---")
         
         if menu == "C.H. Automotriz":
