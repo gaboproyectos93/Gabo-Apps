@@ -1,167 +1,230 @@
 import streamlit as st
 from PIL import Image, ImageOps
 from datetime import datetime
-import os
 import io
 import zipfile
 import smtplib
 from email.message import EmailMessage
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
-from oauth2client.service_account import ServiceAccountCredentials
 
-# --- CONFIGURACIÓN DRIVE ---
-ID_CARPETA_DRIVE = "1rymOQYirK8xljHHzn0bcn5HUOwYE-Tg7"
+# ==========================================
+# CONFIGURACIÓN DE CORREOS DESTINO
+# ==========================================
+CORREO_ANALISTA = "gabriel.poblete@kaufmann.cl"
+CORREO_ASESORA = "gabriel.poblete@kaufmann.cl" # <-- CAMBIA ESTO POR EL CORREO REAL DE DINA
 
 def render_app():
     st.title("Plataforma de garantías Kaufmann")
-    st.info("Sube las fotografías y videos de respaldo directamente desde tu galería. Todo en un solo paso.")
+    st.info("Sube la evidencia técnica. Puedes delegar el libro de mantención a la asesora y omitir pasos que no apliquen.")
 
     # ==========================================
     # 1. IDENTIFICACIÓN
     # ==========================================
     with st.container(border=True):
         col1, col2, col3 = st.columns(3)
-        ot = col1.text_input("Número de OT", placeholder="Ej: 85432", key="garantia_ot").upper()
-        cliente = col2.text_input("Nombre del Cliente", placeholder="Ej: Transportes X", key="garantia_cli").upper()
-        tecnico = col3.text_input("Técnico", placeholder="Ej: Pedro", key="garantia_tec")
+        ot = col1.text_input("Número de OT", placeholder="Ej: 85432", key="gar_ot").upper()
+        cliente = col2.text_input("Nombre del Cliente", placeholder="Ej: Transportes X", key="gar_cli").upper()
+        tecnico = col3.text_input("Técnico", placeholder="Ej: Pedro", key="gar_tec")
 
     # ==========================================
-    # 2. CHECKLIST Y VISTA PREVIA (CON GIRO)
+    # 2. CHECKLIST DINÁMICO
     # ==========================================
-    st.markdown("### 📋 Evidencia Fotográfica (Obligatoria)")
+    st.markdown("### 📋 Evidencia Fotográfica")
     
     requisitos = {
-        "placa_vin": "1_Placa_VIN",
-        "tablero": "2_Tablero_Odometro",
-        "libro": "3_Libro_Mantencion",
-        "diagnostico": "4_Equipo_Diagnostico",
-        "vehiculo": "5_Fotografia_Vehiculo",
-        "repuesto": "6_Repuesto_Involucrado"
+        "placa_vin": {"label": "1_Placa_VIN", "opcional": False},
+        "tablero": {"label": "2_Tablero_Odometro", "opcional": False},
+        "vehiculo": {"label": "5_Fotografia_Vehiculo", "opcional": False},
+        "diagnostico": {"label": "4_Equipo_Diagnostico", "opcional": True},
+        "repuesto": {"label": "6_Repuesto_Involucrado", "opcional": True}
     }
 
     fotos_procesadas = {}
+    acciones_completadas = 0 # Contador para la barra de progreso
+    delegar_dina = False
 
-    for key, label in requisitos.items():
+    # A) CICLO PARA FOTOS ESTÁNDAR Y OPCIONALES
+    for key, config in requisitos.items():
+        label = config["label"]
         st.markdown(f"**{label.replace('_', ' ')}**")
-        archivo = st.file_uploader(f"Sube la foto para {label}", type=['jpg', 'jpeg', 'png'], key=f"up_{key}", label_visibility="collapsed")
         
-        if archivo:
-            if f"img_name_{key}" not in st.session_state or st.session_state[f"img_name_{key}"] != archivo.name:
-                img = Image.open(archivo)
-                st.session_state[f"img_obj_{key}"] = ImageOps.exif_transpose(img) 
-                st.session_state[f"img_name_{key}"] = archivo.name
-
-            col_img, col_btn_izq, col_btn_der = st.columns([2, 1, 1])
-            with col_img:
-                st.image(st.session_state[f"img_obj_{key}"], use_container_width=True)
-            with col_btn_izq:
-                if st.button("↩️ Izq.", key=f"rotL_{key}", use_container_width=True):
-                    st.session_state[f"img_obj_{key}"] = st.session_state[f"img_obj_{key}"].rotate(90, expand=True)
-                    st.rerun()
-            with col_btn_der:
-                if st.button("↪️ Der.", key=f"rotR_{key}", use_container_width=True):
-                    st.session_state[f"img_obj_{key}"] = st.session_state[f"img_obj_{key}"].rotate(-90, expand=True)
-                    st.rerun()
+        # Lógica de "No Aplica"
+        no_aplica = False
+        if config["opcional"]:
+            no_aplica = st.checkbox(f"No aplica para esta falla", key=f"na_{key}")
             
-            fotos_procesadas[key] = st.session_state[f"img_obj_{key}"]
+        if no_aplica:
+            st.success("✔️ Omitido correctamente.")
+            acciones_completadas += 1
+        else:
+            archivo = st.file_uploader(f"Sube la foto", type=['jpg', 'jpeg', 'png'], key=f"up_{key}", label_visibility="collapsed")
+            
+            if archivo:
+                if f"img_name_{key}" not in st.session_state or st.session_state[f"img_name_{key}"] != archivo.name:
+                    img = Image.open(archivo)
+                    st.session_state[f"img_obj_{key}"] = ImageOps.exif_transpose(img) 
+                    st.session_state[f"img_name_{key}"] = archivo.name
+
+                col_img, col_btn_izq, col_btn_der = st.columns([2, 1, 1])
+                with col_img:
+                    st.image(st.session_state[f"img_obj_{key}"], use_container_width=True)
+                with col_btn_izq:
+                    if st.button("↩️ Izq.", key=f"rotL_{key}", use_container_width=True):
+                        st.session_state[f"img_obj_{key}"] = st.session_state[f"img_obj_{key}"].rotate(90, expand=True)
+                        st.rerun()
+                with col_btn_der:
+                    if st.button("↪️ Der.", key=f"rotR_{key}", use_container_width=True):
+                        st.session_state[f"img_obj_{key}"] = st.session_state[f"img_obj_{key}"].rotate(-90, expand=True)
+                        st.rerun()
+                
+                fotos_procesadas[key] = st.session_state[f"img_obj_{key}"]
+                acciones_completadas += 1
+                
         st.divider()
 
-    # ==========================================
-    # 3. VIDEO DE RESPALDO DIRECTO
-    # ==========================================
-    st.markdown("### 🎥 Evidencia en Video (Opcional)")
-    st.caption("Graba o selecciona el video desde tu galería. El sistema lo procesará automáticamente.")
-    video_archivo = st.file_uploader("Sube el video de respaldo (Máx 200MB)", type=['mp4', 'mov', 'avi'], key="up_video")
+    # B) BLOQUE ESPECIAL: LIBRO DE MANTENCIÓN (DINA)
+    st.markdown("**3 Libro Mantencion**")
+    opcion_libro = st.radio("¿Quién adjuntará el libro?", ["Técnico (Subir foto ahora)", "Solicitar a Asesora (Dina Vega)"], horizontal=True)
+    
+    if opcion_libro == "Técnico (Subir foto ahora)":
+        archivo_libro = st.file_uploader("Sube la foto del libro", type=['jpg', 'jpeg', 'png'], key="up_libro", label_visibility="collapsed")
+        if archivo_libro:
+            if "img_name_libro" not in st.session_state or st.session_state["img_name_libro"] != archivo_libro.name:
+                img_l = Image.open(archivo_libro)
+                st.session_state["img_obj_libro"] = ImageOps.exif_transpose(img_l) 
+                st.session_state["img_name_libro"] = archivo_libro.name
+            
+            c_img, c_l, c_r = st.columns([2, 1, 1])
+            c_img.image(st.session_state["img_obj_libro"], use_container_width=True)
+            if c_l.button("↩️ Izq.", key="rotL_libro", use_container_width=True):
+                st.session_state["img_obj_libro"] = st.session_state["img_obj_libro"].rotate(90, expand=True)
+                st.rerun()
+            if c_r.button("↪️ Der.", key="rotR_libro", use_container_width=True):
+                st.session_state["img_obj_libro"] = st.session_state["img_obj_libro"].rotate(-90, expand=True)
+                st.rerun()
+            
+            fotos_procesadas["libro"] = st.session_state["img_obj_libro"]
+            acciones_completadas += 1
+    else:
+        st.info(f"✉️ Al enviar, notificaremos automáticamente a Dina ({CORREO_ASESORA}) para que te envíe esta foto por interno.")
+        delegar_dina = True
+        acciones_completadas += 1
+
     st.divider()
 
     # ==========================================
-    # 4. LÓGICA DE NUBE Y CORREO
+    # 3. VIDEO DE RESPALDO (Opcional)
     # ==========================================
-    def subir_a_google_drive(archivo_vid, nombre_archivo):
-        try:
-            # Usa la llave maestra que ya tienes en Secrets
-            creds_dict = st.secrets["gcp_service_account"]
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, ['https://www.googleapis.com/auth/drive'])
-            service = build('drive', 'v3', credentials=creds)
-            
-            file_metadata = {'name': nombre_archivo, 'parents': [ID_CARPETA_DRIVE]}
-            media = MediaIoBaseUpload(io.BytesIO(archivo_vid.read()), mimetype=archivo_vid.type, resumable=True)
-            
-            # Sube el archivo
-            file = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
-            return file.get('webViewLink')
-        except Exception as e:
-            return f"ERROR_NUBE: {e}"
+    st.markdown("### 🎥 Evidencia en Video (Opcional)")
+    st.caption("Graba videos cortos (Máx. 18 MB) para ruidos o fallas.")
+    video_archivo = st.file_uploader("Sube el video de respaldo", type=['mp4', 'mov'], key="up_video")
+    
+    video_valido = True
+    if video_archivo:
+        peso_mb = video_archivo.size / (1024 * 1024)
+        if peso_mb > 18:
+            st.error(f"⚠️ Video demasiado pesado ({peso_mb:.1f} MB). Máximo permitido: 18 MB.")
+            video_valido = False
+        else:
+            st.success(f"✅ Video aceptado ({peso_mb:.1f} MB).")
+    st.divider()
 
-    def enviar_correo(zip_bytes, link_vid=""):
+    # ==========================================
+    # 4. LÓGICA DE ENVÍO DE CORREOS
+    # ==========================================
+    def enviar_correos(zip_bytes, archivo_vid=None, delegar=False):
         try:
             sender = st.secrets["email"]["user"]
             password = st.secrets["email"]["password"]
-            receiver = "gabriel.poblete@kaufmann.cl" 
             
-            msg = EmailMessage()
-            msg['Subject'] = f"RESPALDO GARANTIA OT {ot} - {cliente}"
-            msg['From'] = f"Plataforma de Garantías Kaufmann <{sender}>"
-            msg['To'] = receiver
+            # --- CORREO 1: PARA EL ANALISTA (TÚ) ---
+            msg_analista = EmailMessage()
+            msg_analista['Subject'] = f"RESPALDO GARANTIA OT {ot} - {cliente}"
+            msg_analista['From'] = f"Plataforma de Garantías Kaufmann <{sender}>"
+            msg_analista['To'] = CORREO_ANALISTA
             
-            texto_video = f"\n🎥 VIDEO ADJUNTO:\nEl técnico ha subido un video. Míralo aquí: {link_vid}\n" if link_vid else ""
+            txt_vid = "\n🎥 Se adjunta además un VIDEO DE RESPALDO.\n" if archivo_vid else ""
+            txt_libro = "⚠️ NOTA: El libro de mantención fue delegado a la asesora (Dina Vega). Te lo enviará por separado.\n" if delegar else "El archivo ZIP contiene todas las fotografías solicitadas."
 
-            cuerpo_mensaje = f"""Hola Gabriel,
+            cuerpo_analista = f"""Hola Gabriel,
 
 Se adjunta el respaldo de garantía para:
 - OT: {ot}
 - Cliente: {cliente}
 
-Documentación generada desde la plataforma por el técnico: {tecnico}.
-{texto_video}
-El archivo ZIP contiene las fotografías originales solicitadas para su gestión.
+Documentación subida por: {tecnico}.
+{txt_vid}
+{txt_libro}
 
 Saludos."""
-            msg.set_content(cuerpo_mensaje)
-            msg.add_attachment(zip_bytes, maintype='application', subtype='zip', filename=f"Garantia_OT_{ot}.zip")
+            msg_analista.set_content(cuerpo_analista)
+            msg_analista.add_attachment(zip_bytes, maintype='application', subtype='zip', filename=f"Garantia_OT_{ot}.zip")
             
+            if archivo_vid:
+                video_data = archivo_vid.read()
+                formato = archivo_vid.name.split('.')[-1].lower()
+                msg_analista.add_attachment(video_data, maintype='video', subtype=formato, filename=f"Video_{ot}.{formato}")
+
             with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
                 smtp.login(sender, password)
-                smtp.send_message(msg)
+                smtp.send_message(msg_analista)
+                
+                # --- CORREO 2: PARA LA ASESORA (SOLO SI SE DELEGÓ) ---
+                if delegar:
+                    msg_asesora = EmailMessage()
+                    msg_asesora['Subject'] = f"SOLICITUD LIBRO MANTENCIÓN - OT {ot}"
+                    msg_asesora['From'] = f"Plataforma de Garantías Kaufmann <{sender}>"
+                    msg_asesora['To'] = CORREO_ASESORA
+                    # Hacemos que si Dina responde el correo, te llegue directo a ti
+                    msg_asesora.add_header('reply-to', CORREO_ANALISTA) 
+                    
+                    cuerpo_asesora = f"""Hola Dina,
+
+El técnico {tecnico} ha finalizado la recolección de evidencia para la siguiente garantía:
+- OT: {ot}
+- Cliente: {cliente}
+
+Por favor, cuando dispongas del Libro de Mantención timbrado, envíalo directamente a Gabriel Poblete. 
+(Puedes responder directamente a este correo adjuntando la fotografía).
+
+Gracias!"""
+                    msg_asesora.set_content(cuerpo_asesora)
+                    smtp.send_message(msg_asesora)
+
             return True, ""
         except Exception as e:
             return False, str(e)
 
-    progreso = len(fotos_procesadas) / len(requisitos)
-    st.progress(progreso, text=f"Fotografías: {len(fotos_procesadas)} de {len(requisitos)}")
+    # Validamos que se hayan completado los 6 pasos (ya sea con foto, NA, o delegando)
+    TOTAL_ACCIONES = 6 
+    progreso = acciones_completadas / TOTAL_ACCIONES
+    st.progress(progreso, text=f"Progreso del expediente: {acciones_completadas} de {TOTAL_ACCIONES} completados")
 
     if st.button("🚀 ENVIAR RESPALDO", type="primary", use_container_width=True):
         if not ot or not tecnico or not cliente:
             st.error("⛔ Ingresa OT, Cliente y Técnico antes de enviar.")
-        elif len(fotos_procesadas) < len(requisitos):
-            st.warning("⚠️ Faltan fotos obligatorias.")
+        elif acciones_completadas < TOTAL_ACCIONES:
+            st.warning("⚠️ Faltan pasos por completar (Sube la foto o marca 'No aplica').")
+        elif not video_valido:
+            st.error("⛔ No se puede enviar. El video supera los 18 MB permitidos.")
         else:
-            with st.spinner("📦 Procesando evidencia pesada y enviando... Esto tomará unos segundos."):
+            with st.spinner("📦 Empaquetando y gestionando notificaciones..."):
                 try:
-                    # 1. Subir video si existe
-                    link_v = ""
-                    if video_archivo:
-                        link_v = subir_a_google_drive(video_archivo, f"Video_OT_{ot}_{cliente}.mp4")
-                        if "ERROR_NUBE" in link_v:
-                            st.error(f"Error al subir el video: {link_v}")
-                            return
-
-                    # 2. Armar el ZIP con las fotos
                     zip_buffer = io.BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                        for k, lbl in requisitos.items():
-                            img = fotos_procesadas[k]
+                        for k, img in fotos_procesadas.items():
+                            # Mapeamos el nombre original de la etiqueta para el archivo
+                            nombre_archivo = "3_Libro_Mantencion" if k == "libro" else requisitos[k]["label"]
                             img.thumbnail((1600, 1600)) 
                             img_byte_arr = io.BytesIO()
                             img.convert('RGB').save(img_byte_arr, format='JPEG', quality=90)
-                            zip_file.writestr(f"{lbl}.jpg", img_byte_arr.getvalue())
+                            zip_file.writestr(f"{nombre_archivo}.jpg", img_byte_arr.getvalue())
                     zip_bytes = zip_buffer.getvalue()
 
-                    # 3. Enviar correo final
-                    exito, error_msg = enviar_correo(zip_bytes, link_v)
+                    exito, error_msg = enviar_correos(zip_bytes, video_archivo, delegar_dina)
                     if exito:
-                        st.success(f"✅ ¡Respaldo OT {ot} enviado exitosamente!")
+                        st.success(f"✅ ¡Respaldo enviado exitosamente!")
+                        if delegar_dina:
+                            st.info(f"📧 Se envió la notificación a Dina Vega ({CORREO_ASESORA}).")
                     else:
                         st.error(f"❌ Error al enviar el correo: {error_msg}")
                 except Exception as e:
