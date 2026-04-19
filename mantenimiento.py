@@ -36,12 +36,12 @@ def render_app():
     """, unsafe_allow_html=True)
 
     st.title("🛠️ Pautas de Mantenimiento")
-    st.info("Selecciona el modelo y su motorización para obtener la pauta técnica oficial.")
+    st.info("Selecciona los parámetros del vehículo para descargar el PDF oficial.")
 
     SPREADSHEET_ID = "1jqMJ7i_tS-lpOvlAMAtzwj-Wcpk68arrWBaJOtBVUzA"
 
     # ==========================================
-    # 1. CONEXIÓN Y CARGA DE DATOS EN CASCADA
+    # 1. CONEXIÓN Y CARGA DE DATOS
     # ==========================================
     def conectar_google_sheets():
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -54,121 +54,112 @@ def render_app():
                 return gspread.authorize(creds)
             return None
         except Exception as e:
-            st.error(f"Error técnico de conexión: {e}")
+            st.error(f"Error de conexión: {e}")
             return None
 
     @st.cache_data(ttl=600)
-    def cargar_datos_maxus():
+    def cargar_datos_pautas():
         try:
             client = conectar_google_sheets()
             if client:
                 sheet = client.open_by_key(SPREADSHEET_ID).sheet1
-                # Usamos get_all_values() para procesar la tabla manualmente y esquivar títulos
                 data_list = sheet.get_all_values()
-                
                 if data_list:
-                    # Buscamos inteligentemente la fila que contiene los encabezados reales
+                    # Buscador de cabeceras inteligente
                     header_idx = 0
                     for i, row in enumerate(data_list):
                         row_upper = [str(c).strip().upper() for c in row]
-                        if 'MODELO' in row_upper and 'MOTORIZACIÓN' in row_upper:
+                        if 'MARCA' in row_upper and 'MODELO' in row_upper:
                             header_idx = i
                             break
-                    
                     headers = [str(c).strip().upper() for c in data_list[header_idx]]
                     rows = data_list[header_idx+1:]
-                    df = pd.DataFrame(rows, columns=headers)
-                    
-                    # Filtramos filas vacías por seguridad
-                    df = df[df['MODELO'] != ""]
-                    return df
-        except Exception as e:
-            st.warning(f"⚠️ Trabajando con datos locales de emergencia. ({e})")
-            
-        mock_data = {
-            'MODELO': ['T60 D20', 'T90', 'DELIVER 9'],
-            'MOTORIZACIÓN': ['DIESEL - EURO 6', 'DIESEL - EURO 6', 'DIESEL - EURO 6'],
-            'TRANSMISION': ['AT', 'AT', 'MT'],
-            'TRACCION': ['4X4', '4X4', 'TRASERA']
-        }
-        return pd.DataFrame(mock_data)
+                    return pd.DataFrame(rows, columns=headers)
+        except:
+            pass
+        return pd.DataFrame(columns=['MARCA', 'MODELO', 'MOTORIZACIÓN', 'TRANSMISION', 'TRACCION', 'NOMBRE ARCHIVO'])
 
-    df_maxus = cargar_datos_maxus()
+    df = cargar_datos_pautas()
 
     # ==========================================
-    # 2. CONFIGURACIÓN DEL VEHÍCULO
+    # 2. FILTROS EN CASCADA
     # ==========================================
     st.markdown("### 🚙 Configuración del Vehículo")
     
-    cols_necesarias = ['MODELO', 'MOTORIZACIÓN', 'TRANSMISION', 'TRACCION']
-    faltan = [c for c in cols_necesarias if c not in df_maxus.columns]
-    
-    if faltan:
-        st.error(f"❌ Faltan estas columnas en tu Google Sheet DB_PAUTAS: {', '.join(faltan)}")
+    if df.empty:
+        st.warning("Cargando base de datos...")
         return
 
     c1, c2 = st.columns(2)
-    c3, c4 = st.columns(2)
+    c3, c4, c5 = st.columns(3)
 
-    # Filtro Modelo
-    modelos = sorted(df_maxus['MODELO'].dropna().unique())
-    modelo_sel = c1.selectbox("Modelo", [str(m) for m in modelos])
-    df_mod = df_maxus[df_maxus['MODELO'] == modelo_sel]
+    marcas = sorted(df['MARCA'].unique())
+    marca_sel = c1.selectbox("Marca", marcas)
+    df_f = df[df['MARCA'] == marca_sel]
 
-    # Filtro Motorización 
-    motores = sorted(df_mod['MOTORIZACIÓN'].dropna().unique())
-    motor_sel = c2.selectbox("Motorización", [str(m) for m in motores])
-    df_mot = df_mod[df_mod['MOTORIZACIÓN'] == motor_sel]
+    modelos = sorted(df_f['MODELO'].unique())
+    modelo_sel = c2.selectbox("Modelo", modelos)
+    df_f = df_f[df_f['MODELO'] == modelo_sel]
 
-    # Filtro Transmisión
-    transmisiones = sorted(df_mot['TRANSMISION'].dropna().unique())
-    trans_sel = c3.selectbox("Transmisión", [str(t) for t in transmisiones])
-    df_trans = df_mot[df_mot['TRANSMISION'] == trans_sel]
+    motores = sorted(df_f['MOTORIZACIÓN'].unique())
+    motor_sel = c3.selectbox("Motorización", motores)
+    df_f = df_f[df_f['MOTORIZACIÓN'] == motor_sel]
 
-    # Filtro Tracción
-    tracciones = sorted(df_trans['TRACCION'].dropna().unique())
-    tracc_sel = c4.selectbox("Tracción", [str(tr) for tr in tracciones])
+    trans = sorted(df_f['TRANSMISION'].unique())
+    trans_sel = c4.selectbox("Transmisión", trans)
+    df_f = df_f[df_f['TRANSMISION'] == trans_sel]
 
+    trac = sorted(df_f['TRACCION'].unique())
+    tracc_sel = c5.selectbox("Tracción", trac)
+    df_f = df_f[df_f['TRACCION'] == tracc_sel]
 
     # ==========================================
-    # 3. LÓGICA DE BÚSQUEDA DEL PDF
+    # 3. LÓGICA DE BÚSQUEDA CORREGIDA
     # ==========================================
     st.divider()
-    
-    # Optimizamos esta función para que 'DIESEL - EURO 6' se convierta en 'DIESEL_EURO_6'
-    def clean_str(texto):
-        return str(texto).strip().replace(" - ", "_").replace(" ", "_").replace("-", "_").replace("/", "_")
-    
-    nombre_archivo_pdf = f"Pauta_{clean_str(modelo_sel)}_{clean_str(motor_sel)}_{clean_str(trans_sel)}_{clean_str(tracc_sel)}.pdf"
-    
-    ruta_pdf = os.path.join("Pautas", nombre_archivo_pdf)
+
+    # Función para limpiar el texto y que coincida con el nombre del archivo físico
+    def clean(txt):
+        return str(txt).strip().replace(" - ", "_").replace(" ", "_").replace("-", "_").replace("/", "_")
 
     if st.button("🔍 Buscar Pauta Técnica", type="primary", use_container_width=True):
-        if os.path.exists(ruta_pdf):
-            with open(ruta_pdf, "rb") as f:
-                pdf_bytes = f.read()
+        if not df_f.empty:
+            # Primero intentamos usar la columna "NOMBRE ARCHIVO" si está llena
+            nombre_db = str(df_f.iloc[0].get('NOMBRE ARCHIVO', '')).strip()
             
-            st.success(f"✅ Documento encontrado exitosamente.")
+            if nombre_db and nombre_db != "" and nombre_db != "nan":
+                nombre_final = nombre_db
+            else:
+                # Si está vacía, construimos el nombre automático con el nuevo formato
+                nombre_final = f"Pauta_{clean(marca_sel)}_{clean(modelo_sel)}_{clean(motor_sel)}_{clean(trans_sel)}_{clean(tracc_sel)}.pdf"
             
-            with st.container(border=True):
-                st.markdown(f"""
-                **📋 Pauta de Mantenimiento Integral:**
-                - **Vehículo:** {modelo_sel}
-                - **Motorización:** {motor_sel}
-                - **Especificación:** {trans_sel} | {tracc_sel}
-                """)
+            ruta_pdf = os.path.join("Pautas", nombre_final)
+            
+            if os.path.exists(ruta_pdf):
+                with open(ruta_pdf, "rb") as f:
+                    pdf_bytes = f.read()
+                
+                st.success(f"✅ Documento encontrado.")
+                
+                with st.container(border=True):
+                    st.markdown(f"""
+                    **Detalles del Vehículo:**
+                    - **Archivo:** `{nombre_final}`
+                    - **Especificación:** {motor_sel} | {trans_sel} | {tracc_sel}
+                    """)
 
-            st.download_button(
-                label="📥 Descargar Pauta en PDF",
-                data=pdf_bytes,
-                file_name=nombre_archivo_pdf,
-                mime="application/pdf",
-                use_container_width=True
-            )
+                st.download_button(
+                    label="📥 Descargar Pauta en PDF",
+                    data=pdf_bytes,
+                    file_name=nombre_final,
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            else:
+                st.error(f"⚠️ No se encontró el archivo físico en GitHub.")
+                st.info(f"El sistema buscó exactamente este nombre: `{nombre_final}`")
         else:
-            st.error(f"⚠️ Documento no encontrado.")
-            st.code(f"El sistema buscó este archivo:\n{nombre_archivo_pdf}", language="text")
-            st.info("Asegúrate de que el PDF en la carpeta 'Pautas' en GitHub tenga exactamente ese nombre.")
+            st.error("No hay coincidencias en la base de datos.")
 
 if __name__ == "__main__":
     render_app()
