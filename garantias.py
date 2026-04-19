@@ -13,6 +13,32 @@ CORREO_ANALISTA = "gabriel.poblete@kaufmann.cl"
 CORREO_ASESORA = "gabriel.poblete@kaufmann.cl" 
 
 def render_app():
+    # ==========================================
+    # INYECCIÓN DE DISEÑO CORPORATIVO (KAUFMANN)
+    # ==========================================
+    st.markdown("""
+    <style>
+        /* 1. Fondo negro absoluto para toda la aplicación */
+        .stApp {
+            background-color: #000000 !important;
+        }
+        
+        /* 2. Título principal en Minion Pro Regular */
+        h1 {
+            font-family: 'Minion Pro', 'Times New Roman', Times, serif !important;
+            font-weight: 400 !important; /* 400 es el peso "Regular" */
+            color: #FFFFFF !important; /* Letra blanca para que resalte */
+            letter-spacing: 1px;
+        }
+        
+        /* 3. Ajuste de bordes para que combine con el fondo negro */
+        [data-testid="stVerticalBlockBorderWrapper"] {
+            border-color: #333333 !important; /* Bordes gris oscuro elegante */
+            border-radius: 8px !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.title("Plataforma de garantías Kaufmann")
     st.info("Sube la evidencia técnica. Puedes delegar el libro de mantención a la asesora y omitir pasos que no apliquen.")
 
@@ -22,11 +48,9 @@ def render_app():
     with st.container(border=True):
         col1, col2, col3 = st.columns(3)
         
-        # NUEVOS PLACEHOLDERS (SUGERENCIAS)
-        ot = col1.text_input("Número de OT", placeholder="Ej. 205456789", key="gar_ot").upper()
-        cliente = col2.text_input("Nombre del Cliente", placeholder="Ej. Transportes M. Valenzuela", key="gar_cli").upper()
+        ot = col1.text_input("Número de OT", placeholder="205456789", key="gar_ot").upper()
+        cliente = col2.text_input("Nombre del Cliente", placeholder="Transportes Schuber", key="gar_cli").upper()
         
-        # NUEVO: MENÚ DESPLEGABLE DE TÉCNICOS
         lista_tecnicos = [
             "--- Seleccione ---",
             "Claudio Flores",
@@ -34,8 +58,8 @@ def render_app():
             "Sebastian Ayenao",
             "Rafael Bastías",
             "Eduardo Peñailillo",
-            "Gastón Alarcón",
-        ] # <-- EDITA ESTA LISTA CON LOS NOMBRES REALES DE TU EQUIPO
+            "Gastón Alarcón"
+        ]
         
         tecnico = col3.selectbox("Técnico", lista_tecnicos, key="gar_tec")
 
