@@ -38,8 +38,6 @@ def render_app():
     st.title("🛠️ Pautas de Mantenimiento")
     st.info("Selecciona el modelo y su motorización para obtener la pauta técnica oficial.")
 
-    # ID de la Google Sheet (Asegúrate de que este ID sea el correcto si creaste un archivo nuevo)
-    # Si solo cambiaste el nombre del archivo existente, el ID se mantiene igual.
     SPREADSHEET_ID = "1jqMJ7i_tS-lpOvlAMAtzwj-Wcpk68arrWBaJOtBVUzA"
 
     # ==========================================
@@ -64,20 +62,32 @@ def render_app():
         try:
             client = conectar_google_sheets()
             if client:
-                # El sistema busca por ID, así que el nombre del archivo puede cambiar sin afectar
                 sheet = client.open_by_key(SPREADSHEET_ID).sheet1
-                data = sheet.get_all_records()
-                if data:
-                    df = pd.DataFrame(data)
-                    df.columns = [str(c).strip().upper() for c in df.columns]
+                # Usamos get_all_values() para procesar la tabla manualmente y esquivar títulos
+                data_list = sheet.get_all_values()
+                
+                if data_list:
+                    # Buscamos inteligentemente la fila que contiene los encabezados reales
+                    header_idx = 0
+                    for i, row in enumerate(data_list):
+                        row_upper = [str(c).strip().upper() for c in row]
+                        if 'MODELO' in row_upper and 'MOTORIZACIÓN' in row_upper:
+                            header_idx = i
+                            break
+                    
+                    headers = [str(c).strip().upper() for c in data_list[header_idx]]
+                    rows = data_list[header_idx+1:]
+                    df = pd.DataFrame(rows, columns=headers)
+                    
+                    # Filtramos filas vacías por seguridad
+                    df = df[df['MODELO'] != ""]
                     return df
         except Exception as e:
             st.warning(f"⚠️ Trabajando con datos locales de emergencia. ({e})")
             
-        # Mock data actualizado con la nueva columna
         mock_data = {
             'MODELO': ['T60 D20', 'T90', 'DELIVER 9'],
-            'MOTORIZACIÓN': ['DIESEL EURO 6', 'DIESEL EURO 6', 'DIESEL EURO 6'],
+            'MOTORIZACIÓN': ['DIESEL - EURO 6', 'DIESEL - EURO 6', 'DIESEL - EURO 6'],
             'TRANSMISION': ['AT', 'AT', 'MT'],
             'TRACCION': ['4X4', '4X4', 'TRASERA']
         }
@@ -90,13 +100,11 @@ def render_app():
     # ==========================================
     st.markdown("### 🚙 Configuración del Vehículo")
     
-    # ACTUALIZACIÓN: Ahora buscamos 'MOTORIZACIÓN' en lugar de 'NORMA EMISIONES'
     cols_necesarias = ['MODELO', 'MOTORIZACIÓN', 'TRANSMISION', 'TRACCION']
     faltan = [c for c in cols_necesarias if c not in df_maxus.columns]
     
     if faltan:
         st.error(f"❌ Faltan estas columnas en tu Google Sheet DB_PAUTAS: {', '.join(faltan)}")
-        st.info("Revisa que el nombre en el Excel diga exactamente MOTORIZACIÓN (con tilde y en mayúsculas).")
         return
 
     c1, c2 = st.columns(2)
@@ -104,10 +112,10 @@ def render_app():
 
     # Filtro Modelo
     modelos = sorted(df_maxus['MODELO'].dropna().unique())
-    modelo_sel = c1.selectbox("Modelo MAXUS", [str(m) for m in modelos])
+    modelo_sel = c1.selectbox("Modelo", [str(m) for m in modelos])
     df_mod = df_maxus[df_maxus['MODELO'] == modelo_sel]
 
-    # Filtro Motorización (Nuevo nombre)
+    # Filtro Motorización 
     motores = sorted(df_mod['MOTORIZACIÓN'].dropna().unique())
     motor_sel = c2.selectbox("Motorización", [str(m) for m in motores])
     df_mot = df_mod[df_mod['MOTORIZACIÓN'] == motor_sel]
@@ -127,11 +135,11 @@ def render_app():
     # ==========================================
     st.divider()
     
+    # Optimizamos esta función para que 'DIESEL - EURO 6' se convierta en 'DIESEL_EURO_6'
     def clean_str(texto):
-        return str(texto).strip().replace(" ", "_").replace("/", "_")
+        return str(texto).strip().replace(" - ", "_").replace(" ", "_").replace("-", "_").replace("/", "_")
     
-    # El nombre del archivo ahora incluirá la motorización (ej: DIESEL_EURO_6 o GASOLINA)
-    nombre_archivo_pdf = f"Maxus_{clean_str(modelo_sel)}_{clean_str(motor_sel)}_{clean_str(trans_sel)}_{clean_str(tracc_sel)}.pdf"
+    nombre_archivo_pdf = f"Pauta_{clean_str(modelo_sel)}_{clean_str(motor_sel)}_{clean_str(trans_sel)}_{clean_str(tracc_sel)}.pdf"
     
     ruta_pdf = os.path.join("Pautas", nombre_archivo_pdf)
 
@@ -145,7 +153,7 @@ def render_app():
             with st.container(border=True):
                 st.markdown(f"""
                 **📋 Pauta de Mantenimiento Integral:**
-                - **Vehículo:** MAXUS {modelo_sel}
+                - **Vehículo:** {modelo_sel}
                 - **Motorización:** {motor_sel}
                 - **Especificación:** {trans_sel} | {tracc_sel}
                 """)
@@ -160,7 +168,7 @@ def render_app():
         else:
             st.error(f"⚠️ Documento no encontrado.")
             st.code(f"El sistema buscó este archivo:\n{nombre_archivo_pdf}", language="text")
-            st.info("Asegúrate de que el PDF en la carpeta 'Pautas' tenga exactamente ese nombre.")
+            st.info("Asegúrate de que el PDF en la carpeta 'Pautas' en GitHub tenga exactamente ese nombre.")
 
 if __name__ == "__main__":
     render_app()
