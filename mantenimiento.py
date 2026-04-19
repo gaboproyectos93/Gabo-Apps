@@ -3,7 +3,8 @@ import pandas as pd
 import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import base64  # <-- NUEVA LIBRERÍA PARA EL VISOR PDF
+import fitz  # <-- NUEVA LIBRERÍA: PyMuPDF para leer el PDF
+from PIL import Image
 
 def render_app():
     # ==========================================
@@ -37,7 +38,7 @@ def render_app():
     """, unsafe_allow_html=True)
 
     st.title("🛠️ Pautas de Mantenimiento")
-    st.info("Selecciona los parámetros del vehículo para visualizar o descargar el PDF oficial.")
+    st.info("Selecciona los parámetros del vehículo para visualizar o descargar el documento oficial.")
 
     SPREADSHEET_ID = "1jqMJ7i_tS-lpOvlAMAtzwj-Wcpk68arrWBaJOtBVUzA"
 
@@ -114,7 +115,7 @@ def render_app():
     df_f = df_f[df_f['TRACCION'] == tracc_sel]
 
     # ==========================================
-    # 3. LÓGICA DE BÚSQUEDA Y VISUALIZACIÓN
+    # 3. LÓGICA DE BÚSQUEDA Y VISUALIZACIÓN MÓVIL
     # ==========================================
     st.divider()
 
@@ -145,24 +146,33 @@ def render_app():
                     - **Especificación:** {motor_sel} | {trans_sel} | {tracc_sel}
                     """)
 
-                # --- NUEVO: VISOR DE PDF INTEGRADO ---
+                # --- NUEVO: RENDERIZADO DE PDF A IMÁGENES (PARA CELULARES) ---
                 st.markdown("### 👁️ Vista Previa del Documento")
                 
-                # Convertimos los bytes del PDF a formato Base64 para HTML
-                base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-                
-                # Creamos el Iframe con borde gris oscuro para mantener el diseño corporativo
-                pdf_display = f"""
-                <iframe 
-                    src="data:application/pdf;base64,{base64_pdf}#toolbar=0" 
-                    width="100%" 
-                    height="700px" 
-                    style="border: 1px solid #333; border-radius: 8px;" 
-                    type="application/pdf">
-                </iframe>
-                """
-                st.markdown(pdf_display, unsafe_allow_html=True)
-                # -------------------------------------
+                with st.spinner("Generando vista previa de alta calidad..."):
+                    try:
+                        # Abrir el PDF desde los bytes
+                        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                        
+                        # Generar un contenedor con borde para simular una hoja de papel
+                        with st.container(border=True):
+                            for page_num in range(len(doc)):
+                                page = doc.load_page(page_num)
+                                # Aplicamos un zoom 2x para que las letras pequeñas se lean perfecto
+                                zoom = 2.0 
+                                mat = fitz.Matrix(zoom, zoom)
+                                pix = page.get_pixmap(matrix=mat)
+                                
+                                # Convertir la imagen capturada a un formato que Streamlit entienda
+                                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                                
+                                # Mostrar la imagen en pantalla
+                                st.image(img, use_container_width=True, caption=f"Página {page_num + 1} de {len(doc)}")
+                                st.divider()
+                                
+                    except Exception as e:
+                        st.error(f"Error al generar la vista previa visual: {e}")
+                # -------------------------------------------------------------
 
                 st.download_button(
                     label="📥 Descargar Pauta en PDF",
