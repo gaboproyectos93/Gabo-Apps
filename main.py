@@ -75,16 +75,25 @@ else:
         if menu == "C.H. Automotriz":
             import taller_cristian
             taller_cristian.render_app()
-            
         elif menu == "Pascual Parabrisas":
             import taller_pascual
             taller_pascual.render_app()
-            
         elif menu == "Pautas Maxus":
             import mantenimiento
             mantenimiento.render_app()
-            
         elif menu == "Expediente Garantías":
-            # ESTE ES EL BLOQUE QUE PROBABLEMENTE FALTA
             import garantias
             garantias.render_app()
+
+    elif perfil == "cristian":
+        import taller_cristian
+        taller_cristian.render_app()
+
+    elif perfil == "pascual":
+        import taller_pascual
+        taller_pascual.render_app()
+
+    # --- NUEVO ACCESO PARA LOS TÉCNICOS ---
+    elif perfil == "taller":
+        import garantias
+        garantias.render_app()
