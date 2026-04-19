@@ -6,4 +6,5 @@ oauth2client
 Pillow
 streamlit-cookies-controller
 google-api-python-client
+PyMuPDF
 
