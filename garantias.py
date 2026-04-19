@@ -75,8 +75,8 @@ def render_app():
     with st.container(border=True):
         col1, col2, col3 = st.columns(3)
         
-        ot = col1.text_input("Número de OT", placeholder="205456789", key="gar_ot").upper()
-        cliente = col2.text_input("Nombre del Cliente", placeholder="Transportes Schuber", key="gar_cli").upper()
+        ot = col1.text_input("Número de OT", placeholder="Ej. 205456789", key="gar_ot").upper()
+        cliente = col2.text_input("Nombre del Cliente", placeholder="Ej. Transportes Miguel", key="gar_cli").upper()
         
         lista_tecnicos = [
             "--- Seleccione ---",
