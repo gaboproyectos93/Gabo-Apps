@@ -31,10 +31,37 @@ def render_app():
             letter-spacing: 1px;
         }
         
-        /* 3. Ajuste de bordes para que combine con el fondo negro */
+        /* 3. Ajuste de bordes para cajas */
         [data-testid="stVerticalBlockBorderWrapper"] {
             border-color: #333333 !important; /* Bordes gris oscuro elegante */
             border-radius: 8px !important;
+        }
+        
+        /* 4. BOTONES KAUFMANN (CELESTE) */
+        /* Estilo para los botones de Adjuntar Archivo (File Uploader) */
+        [data-testid="stFileUploader"] button {
+            background-color: #00A2ED !important; /* Celeste Kaufmann */
+            color: #FFFFFF !important;
+            border: none !important;
+            border-radius: 2px !important; /* Bordes más rectos como la web */
+            font-weight: 600 !important;
+            padding: 0.5rem 1rem !important;
+        }
+        [data-testid="stFileUploader"] button:hover {
+            background-color: #0088C9 !important; /* Celeste más oscuro al pasar el mouse */
+        }
+        
+        /* Estilo para los botones principales (Enviar Respaldo) */
+        .stButton > button[kind="primary"] {
+            background-color: #00A2ED !important;
+            border-color: #00A2ED !important;
+            color: #FFFFFF !important;
+            border-radius: 2px !important;
+            font-weight: 600 !important;
+        }
+        .stButton > button[kind="primary"]:hover {
+            background-color: #0088C9 !important;
+            border-color: #0088C9 !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -58,8 +85,8 @@ def render_app():
             "Sebastian Ayenao",
             "Rafael Bastías",
             "Eduardo Peñailillo",
-            "Gastón Alarcón"
-        ]
+            "Gastón Alarcón",
+        ] 
         
         tecnico = col3.selectbox("Técnico", lista_tecnicos, key="gar_tec")
 
