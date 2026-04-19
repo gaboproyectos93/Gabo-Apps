@@ -77,12 +77,21 @@ def render_app():
     def btn_type(cristal):
         return "primary" if cristal in st.session_state.cristales_sel else "secondary"
 
+    # --- ESCOBA DIGITAL: LIMPIEZA TOTAL ---
     def reset_session():
+        # Preservamos las variables del sistema principal (Login)
+        keys_to_keep = ['logueado', 'perfil']
+        
+        # Destruimos todas las memorias de los widgets de la app
+        for key in list(st.session_state.keys()):
+            if key not in keys_to_keep:
+                del st.session_state[key]
+                
+        # Reiniciamos las listas vacías para la nueva cotización
         st.session_state.cristales_sel = []
         st.session_state.items_productos = []
         st.session_state.items_servicios = []
         st.session_state.servicio_desc = ""
-        if 'presupuesto_generado' in st.session_state: del st.session_state['presupuesto_generado']
         st.rerun()
 
     # --- FUNCIONES BACKEND ---
@@ -308,7 +317,7 @@ def render_app():
     # ==========================================
     # 5. INTERFAZ DE USUARIO (UI) - OPTIMIZADA MOBILE
     # ==========================================
-    col_centro = st.columns([1, 4, 1]) # Ajustado para dar más ancho central en PC, en móvil se apila igual
+    col_centro = st.columns([1, 4, 1])
 
     with col_centro[1]:
         c_logo, c_btn = st.columns([3, 1], vertical_alignment="center")
@@ -357,7 +366,6 @@ def render_app():
             cf1.button("🟩 PARABRISAS", type=btn_type("PARABRISAS"), use_container_width=True, on_click=toggle_cristal, args=("PARABRISAS",))
             cf2.button("🟦 LUNETA TRAS.", type=btn_type("LUNETA TRASERA"), use_container_width=True, on_click=toggle_cristal, args=("LUNETA TRASERA",))
 
-            # Cambiado de 4 columnas a grilla 2x2
             st.markdown("<div style='text-align: center; color: gray; font-weight: bold; margin-top: 10px;'>LATERALES</div>", unsafe_allow_html=True)
             cd_1, cd_2 = st.columns(2)
             cd_1.button("Aleta D. Izq", type=btn_type("ALETA DEL. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("ALETA DEL. IZQ.",))
@@ -390,11 +398,9 @@ def render_app():
                     if camara_sel == "Sí": desc_sug += " C/CÁMARA"
                     if sensor_sel == "Sí": desc_sug += " C/SENSOR"
                     
-                # Diseño apilado para móvil: Descripción arriba, Cantidad/Precio abajo
                 d_p = st.text_input(f"Descripción (Edita si quieres)", value=desc_sug, key=f"d_p_{cristal}_{i}")
                 
                 cp_1, cp_2 = st.columns(2)
-                # step=1 y step=1000 obligan al celular a mostrar el teclado numérico
                 q_p = cp_1.number_input("Cant.", min_value=1, max_value=10, value=1, step=1, key=f"q_p_{cristal}_{i}")
                 p_p = cp_2.number_input("Precio c/IVA $", min_value=0, step=1000, key=f"p_p_{cristal}_{i}")
                 
@@ -413,7 +419,6 @@ def render_app():
                 st.rerun()
 
         with tab2:
-            # Grilla 2x2 para servicios extras
             cs_1, cs_2 = st.columns(2)
             cs_1.button("Instalación", use_container_width=True, on_click=set_servicio, args=("INSTALACIÓN DE CRISTAL",))
             cs_2.button("Piquete", use_container_width=True, on_click=set_servicio, args=("REPARACIÓN DE PIQUETE",))
@@ -422,7 +427,6 @@ def render_app():
             cs_3.button("Polarizado", use_container_width=True, on_click=set_servicio, args=("SERVICIO DE POLARIZADO",))
             cs_4.button("Grabado", use_container_width=True, on_click=set_servicio, args=("GRABADO DE PATENTES",))
             
-            # Diseño apilado
             d_s = st.text_input("Descripción del Servicio", value=st.session_state.servicio_desc)
             
             ci_1, ci_2 = st.columns(2)
@@ -502,24 +506,24 @@ def render_app():
                     def_contacto = str(cli_data.get('Contacto', ''))
                     def_fono = str(cli_data.get('Fono', ''))
 
-            # Campos apilados para evitar que se achiquen en el teléfono
-            cliente_final = st.text_input("Señor(es) / Razón Social", value=def_nombre)
-            rut_empresa = st.text_input("RUT", value=def_rut)
-            direccion = st.text_input("Dirección", value=def_dir)
+            # Campos con claves asignadas para la limpieza automática
+            cliente_final = st.text_input("Señor(es) / Razón Social", value=def_nombre, key="c_nombre")
+            rut_empresa = st.text_input("RUT", value=def_rut, key="c_rut")
+            direccion = st.text_input("Dirección", value=def_dir, key="c_dir")
             
             c_c1, c_c2 = st.columns(2)
-            ciudad = c_c1.text_input("Ciudad", value=def_ciu)
-            comuna = c_c2.text_input("Comuna", value=def_com)
+            ciudad = c_c1.text_input("Ciudad", value=def_ciu, key="c_ciu")
+            comuna = c_c2.text_input("Comuna", value=def_com, key="c_com")
             
-            giro = st.text_input("Giro Comercial", value=def_giro)
+            giro = st.text_input("Giro Comercial", value=def_giro, key="c_giro")
             
             c_f1, c_f2 = st.columns(2)
-            contacto_nombre = c_f1.text_input("Nombre Contacto", value=def_contacto)
-            contacto_fono = c_f2.text_input("Teléfono", value=def_fono)
+            contacto_nombre = c_f1.text_input("Nombre Contacto", value=def_contacto, key="c_con")
+            contacto_fono = c_f2.text_input("Teléfono", value=def_fono, key="c_fon")
             
-            condicion_pago = st.selectbox("Forma de Pago", ["Transferencia Electrónica", "Efectivo / Contado", "Tarjeta (Débito/Crédito)", "Orden de Compra (O/C)", "Crédito Directo a 30 días"])
-            vendedor_nombre = st.text_input("Vendedor", value="ANA MARIA RIQUELME")
-            siniestro_val = st.text_input("N° de Siniestro (Si aplica)")
+            condicion_pago = st.selectbox("Forma de Pago", ["Transferencia Electrónica", "Efectivo / Contado", "Tarjeta (Débito/Crédito)", "Orden de Compra (O/C)", "Crédito Directo a 30 días"], key="c_pago")
+            vendedor_nombre = st.text_input("Vendedor", value="ANA MARIA RIQUELME", key="c_vend")
+            siniestro_val = st.text_input("N° de Siniestro (Si aplica)", key="c_sin")
 
             if st.button("💾 GENERAR PDF", type="primary", use_container_width=True):
                 if not cliente_final: 
@@ -561,7 +565,6 @@ def render_app():
                 d = st.session_state.pdf_ready
                 st.success(f"✅ Presupuesto N° {d['corr']} generado.")
                 
-                # Botones de descarga y nuevo en el celular
                 st.download_button("📥 DESCARGAR PDF", d['pdf'], d['nombre'], "application/pdf", type="primary", use_container_width=True)
                 if st.button("🔄 Crear Nuevo Presupuesto", use_container_width=True): 
                     del st.session_state['pdf_ready']; reset_session()
