@@ -10,7 +10,7 @@ from email.message import EmailMessage
 # CONFIGURACIÓN DE CORREOS DESTINO
 # ==========================================
 CORREO_ANALISTA = "gabriel.poblete@kaufmann.cl"
-CORREO_ASESORA = "gabriel.poblete@kaufmann.cl" # <-- CAMBIA ESTO POR EL CORREO REAL DE DINA
+CORREO_ASESORA = "gabriel.poblete@kaufmann.cl" 
 
 def render_app():
     st.title("Plataforma de garantías Kaufmann")
@@ -21,9 +21,23 @@ def render_app():
     # ==========================================
     with st.container(border=True):
         col1, col2, col3 = st.columns(3)
-        ot = col1.text_input("Número de OT", placeholder="Ej: 85432", key="gar_ot").upper()
-        cliente = col2.text_input("Nombre del Cliente", placeholder="Ej: Transportes X", key="gar_cli").upper()
-        tecnico = col3.text_input("Técnico", placeholder="Ej: Pedro", key="gar_tec")
+        
+        # NUEVOS PLACEHOLDERS (SUGERENCIAS)
+        ot = col1.text_input("Número de OT", placeholder="205456789", key="gar_ot").upper()
+        cliente = col2.text_input("Nombre del Cliente", placeholder="Transportes Schuber", key="gar_cli").upper()
+        
+        # NUEVO: MENÚ DESPLEGABLE DE TÉCNICOS
+        lista_tecnicos = [
+            "--- Seleccione ---",
+            "Claudio Flores",
+            "Ignacio Chicahual",
+            "Sebastian Ayenao",
+            "Rafael Bastías",
+            "Eduardo Peñailillo",
+            "Gastón Alarcón",
+        ] # <-- EDITA ESTA LISTA CON LOS NOMBRES REALES DE TU EQUIPO
+        
+        tecnico = col3.selectbox("Técnico", lista_tecnicos, key="gar_tec")
 
     # ==========================================
     # 2. CHECKLIST DINÁMICO
@@ -39,15 +53,13 @@ def render_app():
     }
 
     fotos_procesadas = {}
-    acciones_completadas = 0 # Contador para la barra de progreso
+    acciones_completadas = 0 
     delegar_dina = False
 
-    # A) CICLO PARA FOTOS ESTÁNDAR Y OPCIONALES
     for key, config in requisitos.items():
         label = config["label"]
         st.markdown(f"**{label.replace('_', ' ')}**")
         
-        # Lógica de "No Aplica"
         no_aplica = False
         if config["opcional"]:
             no_aplica = st.checkbox(f"No aplica para esta falla", key=f"na_{key}")
@@ -81,7 +93,6 @@ def render_app():
                 
         st.divider()
 
-    # B) BLOQUE ESPECIAL: LIBRO DE MANTENCIÓN (DINA)
     st.markdown("**3 Libro Mantencion**")
     opcion_libro = st.radio("¿Quién adjuntará el libro?", ["Técnico (Subir foto ahora)", "Solicitar a Asesora (Dina Vega)"], horizontal=True)
     
@@ -105,7 +116,7 @@ def render_app():
             fotos_procesadas["libro"] = st.session_state["img_obj_libro"]
             acciones_completadas += 1
     else:
-        st.info(f"✉️ Al enviar, notificaremos automáticamente a Dina ({CORREO_ASESORA}) para que te envíe esta foto por interno.")
+        st.info(f"✉️ Al enviar, notificaremos automáticamente a Dina ({CORREO_ASESORA}).")
         delegar_dina = True
         acciones_completadas += 1
 
@@ -129,14 +140,13 @@ def render_app():
     st.divider()
 
     # ==========================================
-    # 4. LÓGICA DE ENVÍO DE CORREOS
+    # 4. LÓGICA DE ENVÍO
     # ==========================================
     def enviar_correos(zip_bytes, archivo_vid=None, delegar=False):
         try:
             sender = st.secrets["email"]["user"]
             password = st.secrets["email"]["password"]
             
-            # --- CORREO 1: PARA EL ANALISTA (TÚ) ---
             msg_analista = EmailMessage()
             msg_analista['Subject'] = f"RESPALDO GARANTIA OT {ot} - {cliente}"
             msg_analista['From'] = f"Plataforma de Garantías Kaufmann <{sender}>"
@@ -168,13 +178,11 @@ Saludos."""
                 smtp.login(sender, password)
                 smtp.send_message(msg_analista)
                 
-                # --- CORREO 2: PARA LA ASESORA (SOLO SI SE DELEGÓ) ---
                 if delegar:
                     msg_asesora = EmailMessage()
                     msg_asesora['Subject'] = f"SOLICITUD LIBRO MANTENCIÓN - OT {ot}"
                     msg_asesora['From'] = f"Plataforma de Garantías Kaufmann <{sender}>"
                     msg_asesora['To'] = CORREO_ASESORA
-                    # Hacemos que si Dina responde el correo, te llegue directo a ti
                     msg_asesora.add_header('reply-to', CORREO_ANALISTA) 
                     
                     cuerpo_asesora = f"""Hola Dina,
@@ -194,14 +202,13 @@ Gracias!"""
         except Exception as e:
             return False, str(e)
 
-    # Validamos que se hayan completado los 6 pasos (ya sea con foto, NA, o delegando)
     TOTAL_ACCIONES = 6 
     progreso = acciones_completadas / TOTAL_ACCIONES
     st.progress(progreso, text=f"Progreso del expediente: {acciones_completadas} de {TOTAL_ACCIONES} completados")
 
     if st.button("🚀 ENVIAR RESPALDO", type="primary", use_container_width=True):
-        if not ot or not tecnico or not cliente:
-            st.error("⛔ Ingresa OT, Cliente y Técnico antes de enviar.")
+        if not ot or tecnico == "--- Seleccione ---" or not cliente:
+            st.error("⛔ Ingresa OT, Cliente y selecciona al Técnico antes de enviar.")
         elif acciones_completadas < TOTAL_ACCIONES:
             st.warning("⚠️ Faltan pasos por completar (Sube la foto o marca 'No aplica').")
         elif not video_valido:
@@ -212,7 +219,6 @@ Gracias!"""
                     zip_buffer = io.BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                         for k, img in fotos_procesadas.items():
-                            # Mapeamos el nombre original de la etiqueta para el archivo
                             nombre_archivo = "3_Libro_Mantencion" if k == "libro" else requisitos[k]["label"]
                             img.thumbnail((1600, 1600)) 
                             img_byte_arr = io.BytesIO()
