@@ -11,7 +11,7 @@ from googleapiclient.http import MediaIoBaseUpload
 from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURACIÓN DRIVE ---
-ID_CARPETA_DRIVE = "1rymOQYirK8xljHHzn0bcn5HUOwYE-Tg7?usp=sharing"
+ID_CARPETA_DRIVE = "1rymOQYirK8xljHHzn0bcn5HUOwYE-Tg7"
 
 def render_app():
     st.title("Plataforma de garantías Kaufmann")
