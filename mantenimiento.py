@@ -3,8 +3,9 @@ import pandas as pd
 import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import fitz  # <-- NUEVA LIBRERÍA: PyMuPDF para leer el PDF
+import fitz  # PyMuPDF
 from PIL import Image
+import io
 
 def render_app():
     # ==========================================
@@ -23,6 +24,7 @@ def render_app():
             border-color: #333333 !important;
             border-radius: 8px !important;
         }
+        /* BOTONES Y SLIDERS CELESTES */
         .stButton > button[kind="primary"], [data-testid="stDownloadButton"] > button {
             background-color: #00A2ED !important;
             border-color: #00A2ED !important;
@@ -30,15 +32,17 @@ def render_app():
             border-radius: 2px !important;
             font-weight: 600 !important;
         }
-        .stButton > button[kind="primary"]:hover, [data-testid="stDownloadButton"] > button:hover {
-            background-color: #0088C9 !important;
-            border-color: #0088C9 !important;
+        
+        /* Habilitar scroll horizontal para imágenes con mucho zoom */
+        [data-testid="stImage"] {
+            overflow-x: auto !important;
+            display: block;
         }
     </style>
     """, unsafe_allow_html=True)
 
     st.title("🛠️ Pautas de Mantenimiento")
-    st.info("Selecciona los parámetros del vehículo para visualizar o descargar el documento oficial.")
+    st.info("Selecciona los parámetros y ajusta el zoom para ver detalles técnicos.")
 
     SPREADSHEET_ID = "1jqMJ7i_tS-lpOvlAMAtzwj-Wcpk68arrWBaJOtBVUzA"
 
@@ -83,53 +87,49 @@ def render_app():
     df = cargar_datos_pautas()
 
     # ==========================================
-    # 2. FILTROS EN CASCADA
+    # 2. CONFIGURACIÓN Y CONTROLES DE VISTA
     # ==========================================
-    st.markdown("### 🚙 Configuración del Vehículo")
-    
-    if df.empty:
-        st.warning("Cargando base de datos...")
-        return
+    with st.container(border=True):
+        st.markdown("### 🚙 Configuración del Vehículo")
+        if df.empty:
+            st.warning("Cargando base de datos...")
+            return
 
-    c1, c2 = st.columns(2)
-    c3, c4, c5 = st.columns(3)
+        c1, c2 = st.columns(2)
+        c3, c4, c5 = st.columns(3)
 
-    marcas = sorted(df['MARCA'].unique())
-    marca_sel = c1.selectbox("Marca", marcas)
-    df_f = df[df['MARCA'] == marca_sel]
+        marca_sel = c1.selectbox("Marca", sorted(df['MARCA'].unique()))
+        df_f = df[df['MARCA'] == marca_sel]
 
-    modelos = sorted(df_f['MODELO'].unique())
-    modelo_sel = c2.selectbox("Modelo", modelos)
-    df_f = df_f[df_f['MODELO'] == modelo_sel]
+        modelo_sel = c2.selectbox("Modelo", sorted(df_f['MODELO'].unique()))
+        df_f = df_f[df_f['MODELO'] == modelo_sel]
 
-    motores = sorted(df_f['MOTORIZACIÓN'].unique())
-    motor_sel = c3.selectbox("Motorización", motores)
-    df_f = df_f[df_f['MOTORIZACIÓN'] == motor_sel]
+        motor_sel = c3.selectbox("Motorización", sorted(df_f['MOTORIZACIÓN'].unique()))
+        df_f = df_f[df_f['MOTORIZACIÓN'] == motor_sel]
 
-    trans = sorted(df_f['TRANSMISION'].unique())
-    trans_sel = c4.selectbox("Transmisión", trans)
-    df_f = df_f[df_f['TRANSMISION'] == trans_sel]
+        trans_sel = c4.selectbox("Transmisión", sorted(df_f['TRANSMISION'].unique()))
+        df_f = df_f[df_f['TRANSMISION'] == trans_sel]
 
-    trac = sorted(df_f['TRACCION'].unique())
-    tracc_sel = c5.selectbox("Tracción", trac)
-    df_f = df_f[df_f['TRACCION'] == tracc_sel]
+        tracc_sel = c5.selectbox("Tracción", sorted(df_f['TRACCION'].unique()))
+        df_f = df_f[df_f['TRACCION'] == tracc_sel]
+
+    # --- NUEVO: CONTROL DE ZOOM ---
+    st.markdown("### 🔍 Ajuste de Visualización")
+    zoom_nivel = st.slider("Nivel de Zoom (Aumenta para ver detalles pequeños)", 1.0, 4.0, 2.0, step=0.5)
+    # ------------------------------
 
     # ==========================================
-    # 3. LÓGICA DE BÚSQUEDA Y VISUALIZACIÓN MÓVIL
+    # 3. LÓGICA DE BÚSQUEDA Y RENDERIZADO
     # ==========================================
     st.divider()
 
     def clean(txt):
         return str(txt).strip().replace(" - ", "_").replace(" ", "_").replace("-", "_").replace("/", "_")
 
-    if st.button("🔍 Buscar Pauta Técnica", type="primary", use_container_width=True):
+    if st.button("🔍 Buscar y Visualizar Pauta", type="primary", use_container_width=True):
         if not df_f.empty:
             nombre_db = str(df_f.iloc[0].get('NOMBRE ARCHIVO', '')).strip()
-            
-            if nombre_db and nombre_db != "" and nombre_db != "nan":
-                nombre_final = nombre_db
-            else:
-                nombre_final = f"Pauta_{clean(marca_sel)}_{clean(modelo_sel)}_{clean(motor_sel)}_{clean(trans_sel)}_{clean(tracc_sel)}.pdf"
+            nombre_final = nombre_db if nombre_db and nombre_db != "nan" else f"Pauta_{clean(marca_sel)}_{clean(modelo_sel)}_{clean(motor_sel)}_{clean(trans_sel)}_{clean(tracc_sel)}.pdf"
             
             ruta_pdf = os.path.join("Pautas", nombre_final)
             
@@ -137,53 +137,39 @@ def render_app():
                 with open(ruta_pdf, "rb") as f:
                     pdf_bytes = f.read()
                 
-                st.success(f"✅ Documento encontrado.")
-                
-                with st.container(border=True):
-                    st.markdown(f"""
-                    **Detalles del Vehículo:**
-                    - **Archivo:** `{nombre_final}`
-                    - **Especificación:** {motor_sel} | {trans_sel} | {tracc_sel}
-                    """)
+                st.success(f"✅ Mostrando: {nombre_final}")
 
-                # --- NUEVO: RENDERIZADO DE PDF A IMÁGENES (PARA CELULARES) ---
-                st.markdown("### 👁️ Vista Previa del Documento")
-                
-                with st.spinner("Generando vista previa de alta calidad..."):
+                # --- RENDERIZADO CON ZOOM DINÁMICO ---
+                with st.spinner("Optimizando imagen para el nivel de zoom seleccionado..."):
                     try:
-                        # Abrir el PDF desde los bytes
                         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
                         
-                        # Generar un contenedor con borde para simular una hoja de papel
-                        with st.container(border=True):
-                            for page_num in range(len(doc)):
-                                page = doc.load_page(page_num)
-                                # Aplicamos un zoom 2x para que las letras pequeñas se lean perfecto
-                                zoom = 2.0 
-                                mat = fitz.Matrix(zoom, zoom)
-                                pix = page.get_pixmap(matrix=mat)
-                                
-                                # Convertir la imagen capturada a un formato que Streamlit entienda
-                                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                                
-                                # Mostrar la imagen en pantalla
-                                st.image(img, use_container_width=True, caption=f"Página {page_num + 1} de {len(doc)}")
-                                st.divider()
+                        for page_num in range(len(doc)):
+                            page = doc.load_page(page_num)
+                            
+                            # Usamos el zoom_nivel seleccionado por el técnico
+                            mat = fitz.Matrix(zoom_nivel, zoom_nivel)
+                            pix = page.get_pixmap(matrix=mat)
+                            
+                            img = Image.open(io.BytesIO(pix.tobytes("png")))
+                            
+                            # Si el zoom es mayor a 1.5, permitimos que la imagen sea más ancha que la pantalla
+                            # para habilitar el scroll horizontal automático
+                            st.image(img, use_container_width=(zoom_nivel <= 1.5), caption=f"Página {page_num + 1}")
+                            st.divider()
                                 
                     except Exception as e:
-                        st.error(f"Error al generar la vista previa visual: {e}")
-                # -------------------------------------------------------------
+                        st.error(f"Error en el visor: {e}")
 
                 st.download_button(
-                    label="📥 Descargar Pauta en PDF",
+                    label="📥 Descargar copia PDF",
                     data=pdf_bytes,
                     file_name=nombre_final,
                     mime="application/pdf",
                     use_container_width=True
                 )
             else:
-                st.error(f"⚠️ No se encontró el archivo físico en GitHub.")
-                st.info(f"El sistema buscó exactamente este nombre: `{nombre_final}`")
+                st.error(f"⚠️ Archivo no encontrado: `{nombre_final}`")
         else:
             st.error("No hay coincidencias en la base de datos.")
 
