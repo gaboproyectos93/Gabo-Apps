@@ -23,8 +23,8 @@ def render_app():
         col1, col2, col3 = st.columns(3)
         
         # NUEVOS PLACEHOLDERS (SUGERENCIAS)
-        ot = col1.text_input("Número de OT", placeholder="205456789", key="gar_ot").upper()
-        cliente = col2.text_input("Nombre del Cliente", placeholder="Transportes M. Valenzuela", key="gar_cli").upper()
+        ot = col1.text_input("Número de OT", placeholder="Ej. 205456789", key="gar_ot").upper()
+        cliente = col2.text_input("Nombre del Cliente", placeholder="Ej. Transportes M. Valenzuela", key="gar_cli").upper()
         
         # NUEVO: MENÚ DESPLEGABLE DE TÉCNICOS
         lista_tecnicos = [
