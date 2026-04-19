@@ -306,9 +306,9 @@ def render_app():
         return pdf.output(dest='S').encode('latin-1')
 
     # ==========================================
-    # 5. INTERFAZ DE USUARIO (UI)
+    # 5. INTERFAZ DE USUARIO (UI) - OPTIMIZADA MOBILE
     # ==========================================
-    col_centro = st.columns([1, 3, 1])
+    col_centro = st.columns([1, 4, 1]) # Ajustado para dar más ancho central en PC, en móvil se apila igual
 
     with col_centro[1]:
         c_logo, c_btn = st.columns([3, 1], vertical_alignment="center")
@@ -317,82 +317,90 @@ def render_app():
             if logo_app: st.image(logo_app, width=200)
             else: st.title("🪟 Pascual Parabrisas")
         with c_btn:
-            if st.button("🗑️ Limpiar Todo", type="primary", use_container_width=True): reset_session()
+            if st.button("🗑️ Limpiar", type="primary", use_container_width=True): reset_session()
         st.divider()
 
-        # DATOS VEHÍCULO
+        # DATOS VEHÍCULO - Apilado 2x2 para celular
         st.markdown("#### 🚗 1. Datos del Vehículo")
-        c_v1, c_v2, c_v3, c_v4 = st.columns(4)
         
+        cv_1, cv_2 = st.columns(2)
         lista_marcas = list(BASE_VEHICULOS.keys())
         if "--- AGREGAR OTRA MARCA ---" not in lista_marcas: lista_marcas.append("--- AGREGAR OTRA MARCA ---")
-        marca_sel = c_v1.selectbox("Marca", lista_marcas, key="v_marca")
+        marca_sel = cv_1.selectbox("Marca", lista_marcas, key="v_marca")
         
         if marca_sel == "--- AGREGAR OTRA MARCA ---":
-            marca_final = c_v1.text_input("Marca Man:", key="v_marca_man").upper()
+            marca_final = cv_1.text_input("Marca Man:", key="v_marca_man").upper()
             modelos_lista = ["--- AGREGAR OTRO MODELO ---"]
         else:
             marca_final = marca_sel
             modelos_lista = BASE_VEHICULOS.get(marca_sel, ["---"]).copy()
             if "--- AGREGAR OTRO MODELO ---" not in modelos_lista: modelos_lista.append("--- AGREGAR OTRO MODELO ---")
                 
-        modelo_sel = c_v2.selectbox("Modelo", modelos_lista, key="v_modelo")
-        modelo_final = c_v2.text_input("Modelo Man:", key="v_mod_man").upper() if modelo_sel == "--- AGREGAR OTRO MODELO ---" else modelo_sel
+        modelo_sel = cv_2.selectbox("Modelo", modelos_lista, key="v_modelo")
+        modelo_final = cv_2.text_input("Modelo Man:", key="v_mod_man").upper() if modelo_sel == "--- AGREGAR OTRO MODELO ---" else modelo_sel
             
+        cv_3, cv_4 = st.columns(2)
         lista_anios = ["---"] + list(range(2027, 1979, -1)) + ["OTRO (MÁS ANTIGUO)"]
-        anio_sel = c_v3.selectbox("Año", lista_anios, key="v_anio")
-        anio_final = c_v3.text_input("Escriba el Año:", key="v_anio_man") if anio_sel == "OTRO (MÁS ANTIGUO)" else anio_sel
-            
-        patente_final = c_v4.text_input("Patente", key="v_pat").upper()
+        anio_sel = cv_3.selectbox("Año", lista_anios, key="v_anio")
+        anio_final = cv_3.text_input("Escriba el Año:", key="v_anio_man") if anio_sel == "OTRO (MÁS ANTIGUO)" else anio_sel
+        patente_final = cv_4.text_input("Patente", key="v_pat").upper()
 
         st.divider()
 
         # SELECTOR DE CRISTALES Y SERVICIOS
         st.markdown("#### 🪟 2. Trabajos y Repuestos")
-        tab1, tab2 = st.tabs(["📦 Selector de Cristales", "🔧 Servicios Extras"])
+        tab1, tab2 = st.tabs(["📦 Cristales", "🔧 Servicios Extras"])
         
         with tab1:
             st.markdown("<div style='text-align: center; color: gray; font-weight: bold;'>PRINCIPALES</div>", unsafe_allow_html=True)
             cf1, cf2 = st.columns(2)
             cf1.button("🟩 PARABRISAS", type=btn_type("PARABRISAS"), use_container_width=True, on_click=toggle_cristal, args=("PARABRISAS",))
-            cf2.button("🟦 LUNETA TRASERA", type=btn_type("LUNETA TRASERA"), use_container_width=True, on_click=toggle_cristal, args=("LUNETA TRASERA",))
+            cf2.button("🟦 LUNETA TRAS.", type=btn_type("LUNETA TRASERA"), use_container_width=True, on_click=toggle_cristal, args=("LUNETA TRASERA",))
 
+            # Cambiado de 4 columnas a grilla 2x2
             st.markdown("<div style='text-align: center; color: gray; font-weight: bold; margin-top: 10px;'>LATERALES</div>", unsafe_allow_html=True)
-            c_d1, c_d2, c_d3, c_d4 = st.columns(4)
-            c_d1.button("Aleta D. Izq", type=btn_type("ALETA DEL. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("ALETA DEL. IZQ.",))
-            c_d2.button("Ventana D. Izq", type=btn_type("VENTANA DEL. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA DEL. IZQ.",))
-            c_d3.button("Ventana D. Der", type=btn_type("VENTANA DEL. DER."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA DEL. DER.",))
-            c_d4.button("Aleta D. Der", type=btn_type("ALETA DEL. DER."), use_container_width=True, on_click=toggle_cristal, args=("ALETA DEL. DER.",))
+            cd_1, cd_2 = st.columns(2)
+            cd_1.button("Aleta D. Izq", type=btn_type("ALETA DEL. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("ALETA DEL. IZQ.",))
+            cd_2.button("Ventana D. Izq", type=btn_type("VENTANA DEL. IZQ."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA DEL. IZQ.",))
+            
+            cd_3, cd_4 = st.columns(2)
+            cd_3.button("Ventana D. Der", type=btn_type("VENTANA DEL. DER."), use_container_width=True, on_click=toggle_cristal, args=("VENTANA DEL. DER.",))
+            cd_4.button("Aleta D. Der", type=btn_type("ALETA DEL. DER."), use_container_width=True, on_click=toggle_cristal, args=("ALETA DEL. DER.",))
 
-            c_e1, c_e2 = st.columns(2)
-            c_e1.button("Ventana Lateral Izq", type=btn_type("VENTANA LATERAL IZQUIERDA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL IZQUIERDA",))
-            c_e2.button("Ventana Lateral Der", type=btn_type("VENTANA LATERAL DERECHA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL DERECHA",))
+            ce_1, ce_2 = st.columns(2)
+            ce_1.button("Ventana Lat. Izq", type=btn_type("VENTANA LATERAL IZQUIERDA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL IZQUIERDA",))
+            ce_2.button("Ventana Lat. Der", type=btn_type("VENTANA LATERAL DERECHA"), use_container_width=True, on_click=toggle_cristal, args=("VENTANA LATERAL DERECHA",))
             
             camara_sel = "No"
             sensor_sel = "No"
             if any("PARABRISAS" in c for c in st.session_state.cristales_sel):
-                st.markdown("<div style='text-align: center; color: gray; font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 5px;'>OPCIONES DE PARABRISAS</div>", unsafe_allow_html=True)
+                st.markdown("<div style='text-align: center; color: gray; font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 5px;'>OPCIONES PARABRISAS</div>", unsafe_allow_html=True)
                 c_cam, c_sen = st.columns(2)
-                camara_sel = c_cam.radio("¿Tiene Cámara?", ["No", "Sí"], horizontal=True)
-                sensor_sel = c_sen.radio("¿Sensor de Lluvia?", ["No", "Sí"], horizontal=True)
+                camara_sel = c_cam.radio("¿Cámara?", ["No", "Sí"], horizontal=True)
+                sensor_sel = c_sen.radio("¿Sensor?", ["No", "Sí"], horizontal=True)
 
             cristales_a_procesar = st.session_state.cristales_sel if st.session_state.cristales_sel else ["CRISTAL / REPUESTO"]
             
             productos_temp = []
             for i, cristal in enumerate(cristales_a_procesar):
+                st.markdown(f"**Ajuste de Ítem: {cristal}**")
                 desc_sug = f"{cristal} {marca_final} {modelo_final}".strip()
                 
                 if "PARABRISAS" in cristal:
                     if camara_sel == "Sí": desc_sug += " C/CÁMARA"
                     if sensor_sel == "Sí": desc_sug += " C/SENSOR"
                     
-                col_p1, col_p2, col_p3 = st.columns([3, 1, 1.5])
-                d_p = col_p1.text_input(f"Descripción Item {i+1}", value=desc_sug, key=f"d_p_{cristal}_{i}")
-                q_p = col_p2.number_input("Cant.", 1, 10, key=f"q_p_{cristal}_{i}")
-                p_p = col_p3.number_input("Unitario c/IVA $", 0, step=5000, key=f"p_p_{cristal}_{i}")
+                # Diseño apilado para móvil: Descripción arriba, Cantidad/Precio abajo
+                d_p = st.text_input(f"Descripción (Edita si quieres)", value=desc_sug, key=f"d_p_{cristal}_{i}")
+                
+                cp_1, cp_2 = st.columns(2)
+                # step=1 y step=1000 obligan al celular a mostrar el teclado numérico
+                q_p = cp_1.number_input("Cant.", min_value=1, max_value=10, value=1, step=1, key=f"q_p_{cristal}_{i}")
+                p_p = cp_2.number_input("Precio c/IVA $", min_value=0, step=1000, key=f"p_p_{cristal}_{i}")
+                
                 productos_temp.append({"desc": d_p, "cant": q_p, "precio": p_p})
                 
-            if st.button("➕ Agregar Productos al Resumen", type="primary", use_container_width=True):
+            if st.button("➕ Agregar al Resumen", type="primary", use_container_width=True):
                 for p in productos_temp:
                     if p['desc'] and p['precio'] >= 0:
                         st.session_state.items_productos.append({
@@ -405,16 +413,22 @@ def render_app():
                 st.rerun()
 
         with tab2:
-            c_sf1, c_sf2, c_sf3, c_sf4 = st.columns(4)
-            c_sf1.button("Instalación", use_container_width=True, on_click=set_servicio, args=("INSTALACIÓN DE CRISTAL",))
-            c_sf2.button("Piquete", use_container_width=True, on_click=set_servicio, args=("REPARACIÓN DE PIQUETE",))
-            c_sf3.button("Polarizado", use_container_width=True, on_click=set_servicio, args=("SERVICIO DE POLARIZADO",))
-            c_sf4.button("Grabado", use_container_width=True, on_click=set_servicio, args=("GRABADO DE PATENTES",))
+            # Grilla 2x2 para servicios extras
+            cs_1, cs_2 = st.columns(2)
+            cs_1.button("Instalación", use_container_width=True, on_click=set_servicio, args=("INSTALACIÓN DE CRISTAL",))
+            cs_2.button("Piquete", use_container_width=True, on_click=set_servicio, args=("REPARACIÓN DE PIQUETE",))
             
-            col_s1, col_s2, col_s3 = st.columns([3, 1, 1.5])
-            d_s = col_s1.text_input("Servicio", value=st.session_state.servicio_desc)
-            q_s = col_s2.number_input("Cant.", 1, 10, key="q_serv")
-            p_s = col_s3.number_input("Unitario c/IVA $", 0, step=5000, key="p_serv")
+            cs_3, cs_4 = st.columns(2)
+            cs_3.button("Polarizado", use_container_width=True, on_click=set_servicio, args=("SERVICIO DE POLARIZADO",))
+            cs_4.button("Grabado", use_container_width=True, on_click=set_servicio, args=("GRABADO DE PATENTES",))
+            
+            # Diseño apilado
+            d_s = st.text_input("Descripción del Servicio", value=st.session_state.servicio_desc)
+            
+            ci_1, ci_2 = st.columns(2)
+            q_s = ci_1.number_input("Cant.", min_value=1, max_value=10, value=1, step=1, key="q_serv")
+            p_s = ci_2.number_input("Precio c/IVA $", min_value=0, step=1000, key="p_serv")
+            
             if st.button("➕ Agregar Servicio", type="primary", use_container_width=True):
                 if d_s and p_s >= 0:
                     st.session_state.items_servicios.append({"Descripción": d_s, "Cantidad": q_s, "Unitario": p_s, "Total": p_s * q_s})
@@ -429,10 +443,11 @@ def render_app():
         
         if total_bruto > 0:
             st.divider()
-            st.markdown("#### 📱 3. Resumen y Envío Rápido")
-            desc_pct = st.number_input("Descuento Global %", 0, 100, 0)
+            st.markdown("#### 📱 3. Resumen y Mensaje")
+            
+            desc_pct = st.number_input("Descuento Global %", min_value=0, max_value=100, value=0, step=5)
             t_final = total_bruto * (1 - desc_pct/100)
-            st.subheader(f"TOTAL CON IVA: {format_clp(t_final)}")
+            st.subheader(f"TOTAL: {format_clp(t_final)}")
 
             veh = f"{marca_final} {modelo_final}".strip() or "su vehículo"
             msg = f"Te adjuntamos el presupuesto para {veh}:\n\n"
@@ -441,9 +456,10 @@ def render_app():
             if desc_pct > 0: msg += f"Descuento aplicado: {desc_pct}%\n"
             msg += f"\nTotal con IVA: *{format_clp(t_final)}*\n\n- Pascual Parabrisas"
             
-            st.info("Copia el texto aquí mismo 👇")
+            st.info("Copia el texto para WhatsApp 👇")
             st.code(msg, language="text")
 
+            st.markdown("**Ítems Agregados (Toca la basura para borrar):**")
             for idx, item in enumerate(st.session_state.items_productos + st.session_state.items_servicios):
                 ca, cb = st.columns([5, 1])
                 ca.write(f"• {item['Cantidad']}x {item['Descripción']}")
@@ -454,8 +470,8 @@ def render_app():
 
         # COTIZACIÓN FORMAL (PDF)
         st.divider()
-        with st.expander("🏢 Generar Cotización Formal (PDF)"):
-            st.info("Carga un cliente o ingresa los datos manuales.")
+        with st.expander("🏢 Generar PDF Formal"):
+            st.info("Ingresa los datos para armar el PDF.")
             
             clientes_db = obtener_clientes()
             clientes_dict = {}
@@ -486,21 +502,23 @@ def render_app():
                     def_contacto = str(cli_data.get('Contacto', ''))
                     def_fono = str(cli_data.get('Fono', ''))
 
-            c_e1, c_e2 = st.columns([3, 1])
-            cliente_final = c_e1.text_input("Señor(es) / Razón Social", value=def_nombre)
-            rut_empresa = c_e2.text_input("RUT", value=def_rut)
+            # Campos apilados para evitar que se achiquen en el teléfono
+            cliente_final = st.text_input("Señor(es) / Razón Social", value=def_nombre)
+            rut_empresa = st.text_input("RUT", value=def_rut)
             direccion = st.text_input("Dirección", value=def_dir)
+            
             c_c1, c_c2 = st.columns(2)
             ciudad = c_c1.text_input("Ciudad", value=def_ciu)
             comuna = c_c2.text_input("Comuna", value=def_com)
+            
             giro = st.text_input("Giro Comercial", value=def_giro)
+            
             c_f1, c_f2 = st.columns(2)
             contacto_nombre = c_f1.text_input("Nombre Contacto", value=def_contacto)
             contacto_fono = c_f2.text_input("Teléfono", value=def_fono)
             
-            c_p1, c_p2 = st.columns(2)
-            condicion_pago = c_p1.selectbox("Forma de Pago", ["Transferencia Electrónica", "Efectivo / Contado", "Tarjeta (Débito/Crédito)", "Orden de Compra (O/C)", "Crédito Directo a 30 días"])
-            vendedor_nombre = c_p2.text_input("Vendedor", value="ANA MARIA RIQUELME")
+            condicion_pago = st.selectbox("Forma de Pago", ["Transferencia Electrónica", "Efectivo / Contado", "Tarjeta (Débito/Crédito)", "Orden de Compra (O/C)", "Crédito Directo a 30 días"])
+            vendedor_nombre = st.text_input("Vendedor", value="ANA MARIA RIQUELME")
             siniestro_val = st.text_input("N° de Siniestro (Si aplica)")
 
             if st.button("💾 GENERAR PDF", type="primary", use_container_width=True):
@@ -541,13 +559,12 @@ def render_app():
 
             if 'pdf_ready' in st.session_state:
                 d = st.session_state.pdf_ready
-                st.success(f"✅ Presupuesto N° {d['corr']} generado exitosamente.")
+                st.success(f"✅ Presupuesto N° {d['corr']} generado.")
                 
-                c_d1, c_d2 = st.columns(2)
-                with c_d1: st.download_button("📥 DESCARGAR PDF", d['pdf'], d['nombre'], "application/pdf", type="primary", use_container_width=True)
-                with c_d2: 
-                    if st.button("🔄 Crear Nuevo Presupuesto", use_container_width=True): 
-                        del st.session_state['pdf_ready']; reset_session()
+                # Botones de descarga y nuevo en el celular
+                st.download_button("📥 DESCARGAR PDF", d['pdf'], d['nombre'], "application/pdf", type="primary", use_container_width=True)
+                if st.button("🔄 Crear Nuevo Presupuesto", use_container_width=True): 
+                    del st.session_state['pdf_ready']; reset_session()
 
 if __name__ == "__main__":
     render_app()
