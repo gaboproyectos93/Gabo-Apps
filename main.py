@@ -67,8 +67,9 @@ else:
         menu = st.selectbox("Seleccione Aplicación:", [
             "C.H. Automotriz", 
             "Pascual Parabrisas", 
-            "Pautas Maxus", 
-            "Expediente de Garantías"])
+            "Pautas Maxus",
+            "Expediente Garantías"
+        ])
         st.markdown("---")
         
         if menu == "C.H. Automotriz":
@@ -80,6 +81,10 @@ else:
             taller_pascual.render_app()
             
         elif menu == "Pautas Maxus":
-            # Aquí llamamos a la nueva app que creaste
             import mantenimiento
             mantenimiento.render_app()
+            
+        elif menu == "Expediente Garantías":
+            # ESTE ES EL BLOQUE QUE PROBABLEMENTE FALTA
+            import garantias
+            garantias.render_app()
