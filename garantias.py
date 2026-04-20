@@ -10,7 +10,7 @@ from email.message import EmailMessage
 # CONFIGURACIÓN DE CORREOS DESTINO
 # ==========================================
 CORREO_ANALISTA = "gabriel.poblete@kaufmann.cl"
-CORREO_ASESORA = "gabriel.poblete@kaufmann.cl" 
+CORREO_ASESORA = "dina.vega@kaufmann.cl" 
 
 def render_app():
     # ==========================================
@@ -204,9 +204,9 @@ def render_app():
             msg_analista['To'] = CORREO_ANALISTA
             
             txt_vid = "\n🎥 Se adjunta además un VIDEO DE RESPALDO.\n" if archivo_vid else ""
-            txt_libro = "⚠️ NOTA: El libro de mantención fue delegado a la asesora (Dina Vega). Te lo enviará por separado.\n" if delegar else "El archivo ZIP contiene todas las fotografías solicitadas."
+            txt_libro = "⚠️ NOTA: El libro de mantención fue delegado a la asesora (Dina Vega). Se enviará por separado.\n" if delegar else "El archivo ZIP contiene todas las fotografías solicitadas."
 
-            cuerpo_analista = f"""Hola Gabriel,
+            cuerpo_analista = f"""Hola Sergio,
 
 Se adjunta el respaldo de garantía para:
 - OT: {ot}
@@ -242,8 +242,7 @@ El técnico {tecnico} ha finalizado la recolección de evidencia para la siguien
 - OT: {ot}
 - Cliente: {cliente}
 
-Por favor, cuando dispongas del Libro de Mantención timbrado, envíalo directamente a Gabriel Poblete. 
-(Puedes responder directamente a este correo adjuntando la fotografía).
+Por favor, cuando dispongas del Libro de Mantención timbrado, envíalo directamente a Sergio Moreno.
 
 Gracias!"""
                     msg_asesora.set_content(cuerpo_asesora)
