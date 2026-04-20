@@ -9,7 +9,7 @@ import io
 
 def render_app():
     # ==========================================
-    # INYECCIÓN DE DISEÑO CORPORATIVO (KAUFMANN)
+    # INYECCIÓN DE DISEÑO CORPORATIVO Y TÁCTIL (KAUFMANN)
     # ==========================================
     st.markdown("""
     <style>
@@ -24,13 +24,18 @@ def render_app():
             border-color: #333333 !important;
             border-radius: 8px !important;
         }
-        /* BOTONES Y SLIDERS CELESTES */
+        
+        /* BOTONES GLOBALES CELESTES */
         .stButton > button[kind="primary"], [data-testid="stDownloadButton"] > button {
             background-color: #00A2ED !important;
             border-color: #00A2ED !important;
             color: #FFFFFF !important;
             border-radius: 2px !important;
             font-weight: 600 !important;
+            padding: 0.75rem 1rem !important; /* Más grandes para tocarlos fácil */
+        }
+        .stButton > button[kind="primary"]:hover, [data-testid="stDownloadButton"] > button:hover {
+            background-color: #0088C9 !important;
         }
         
         /* Habilitar scroll horizontal para imágenes con mucho zoom */
@@ -38,11 +43,42 @@ def render_app():
             overflow-x: auto !important;
             display: block;
         }
+
+        /* =========================================
+           MAGIA UX: RADIO BUTTONS A BOTONES TÁCTILES
+           ========================================= */
+        [data-testid="stRadio"] > div {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        /* Estilo base del botón (Apagado) */
+        [data-testid="stRadio"] label {
+            background-color: #1A1A1A !important;
+            border: 1px solid #444444 !important;
+            border-radius: 25px !important; /* Bordes de pastilla */
+            padding: 12px 24px !important; /* Área táctil grande */
+            color: #AAAAAA !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease-in-out;
+        }
+        /* Ocultar el circulito original del radio */
+        [data-testid="stRadio"] label > div:first-child {
+            display: none !important; 
+        }
+        /* Estilo cuando está SELECCIONADO (Encendido Kaufmann) */
+        [data-testid="stRadio"] label[data-checked="true"] {
+            background-color: #00A2ED !important;
+            border: 1px solid #00A2ED !important;
+            color: #FFFFFF !important;
+            box-shadow: 0px 0px 12px rgba(0,162,237,0.5) !important; /* Brillo elegante */
+            font-weight: bold !important;
+        }
     </style>
     """, unsafe_allow_html=True)
 
     st.title("🛠️ Pautas de Mantenimiento")
-    st.info("Selecciona los parámetros y ajusta el zoom para ver detalles técnicos.")
+    st.info("Toca las opciones para configurar el vehículo. El teclado ya no será una molestia.")
 
     SPREADSHEET_ID = "1jqMJ7i_tS-lpOvlAMAtzwj-Wcpk68arrWBaJOtBVUzA"
 
@@ -87,7 +123,7 @@ def render_app():
     df = cargar_datos_pautas()
 
     # ==========================================
-    # 2. CONFIGURACIÓN Y CONTROLES DE VISTA
+    # 2. CONFIGURACIÓN Y CONTROLES DE VISTA (TÁCTILES)
     # ==========================================
     with st.container(border=True):
         st.markdown("### 🚙 Configuración del Vehículo")
@@ -95,34 +131,43 @@ def render_app():
             st.warning("Cargando base de datos...")
             return
 
-        c1, c2 = st.columns(2)
-        c3, c4, c5 = st.columns(3)
-
-        marca_sel = c1.selectbox("Marca", sorted(df['MARCA'].unique()))
+        # Cambiamos selectbox por radio horizontal. 
+        # La disposición en cascada vertical es mucho mejor para pantallas táctiles.
+        
+        st.markdown("**1. Selecciona la Marca**")
+        marca_sel = st.radio("Marca", sorted(df['MARCA'].unique()), horizontal=True, label_visibility="collapsed")
         df_f = df[df['MARCA'] == marca_sel]
+        st.divider()
 
-        modelo_sel = c2.selectbox("Modelo", sorted(df_f['MODELO'].unique()))
+        st.markdown("**2. Selecciona el Modelo**")
+        modelo_sel = st.radio("Modelo", sorted(df_f['MODELO'].unique()), horizontal=True, label_visibility="collapsed")
         df_f = df_f[df_f['MODELO'] == modelo_sel]
+        st.divider()
 
-        motor_sel = c3.selectbox("Motorización", sorted(df_f['MOTORIZACIÓN'].unique()))
+        st.markdown("**3. Motorización**")
+        motor_sel = st.radio("Motorización", sorted(df_f['MOTORIZACIÓN'].unique()), horizontal=True, label_visibility="collapsed")
         df_f = df_f[df_f['MOTORIZACIÓN'] == motor_sel]
+        st.divider()
 
-        trans_sel = c4.selectbox("Transmisión", sorted(df_f['TRANSMISION'].unique()))
+        st.markdown("**4. Transmisión y Tracción**")
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            trans_sel = st.radio("Transmisión", sorted(df_f['TRANSMISION'].unique()), horizontal=True)
         df_f = df_f[df_f['TRANSMISION'] == trans_sel]
-
-        tracc_sel = c5.selectbox("Tracción", sorted(df_f['TRACCION'].unique()))
+        
+        with col_t2:
+            tracc_sel = st.radio("Tracción", sorted(df_f['TRACCION'].unique()), horizontal=True)
         df_f = df_f[df_f['TRACCION'] == tracc_sel]
 
-    # --- NUEVO: CONTROL DE ZOOM ---
+    # --- CONTROL DE ZOOM ---
     st.markdown("### 🔍 Ajuste de Visualización")
     zoom_nivel = st.slider("Nivel de Zoom (Aumenta para ver detalles pequeños)", 1.0, 4.0, 2.0, step=0.5)
-    # ------------------------------
+    
+    st.divider()
 
     # ==========================================
     # 3. LÓGICA DE BÚSQUEDA Y RENDERIZADO
     # ==========================================
-    st.divider()
-
     def clean(txt):
         return str(txt).strip().replace(" - ", "_").replace(" ", "_").replace("-", "_").replace("/", "_")
 
@@ -146,15 +191,12 @@ def render_app():
                         
                         for page_num in range(len(doc)):
                             page = doc.load_page(page_num)
-                            
-                            # Usamos el zoom_nivel seleccionado por el técnico
                             mat = fitz.Matrix(zoom_nivel, zoom_nivel)
                             pix = page.get_pixmap(matrix=mat)
                             
                             img = Image.open(io.BytesIO(pix.tobytes("png")))
                             
-                            # Si el zoom es mayor a 1.5, permitimos que la imagen sea más ancha que la pantalla
-                            # para habilitar el scroll horizontal automático
+                            # Si el zoom es alto, permitimos que desborde para el scroll horizontal
                             st.image(img, use_container_width=(zoom_nivel <= 1.5), caption=f"Página {page_num + 1}")
                             st.divider()
                                 
