@@ -44,41 +44,48 @@ def render_app():
         }
 
         /* =========================================
-           BOTONES TÁCTILES INTELIGENTES (PILLS)
+           BOTONES TÁCTILES INFALIBLES (PILLS)
            ========================================= */
-        div[role="radiogroup"] {
-            gap: 12px; /* Separación entre botones */
+        /* 1. Alinear los botones como un bloque continuo */
+        [data-testid="stRadio"] > div[role="radiogroup"] {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 12px !important;
         }
         
-        /* 1. Ocultar el círculo nativo feo */
-        div[role="radiogroup"] input[type="radio"] + div {
+        /* 2. Ocultar el círculo nativo de selección */
+        div[role="radio"] > div:first-child {
             display: none !important;
         }
 
-        /* 2. Estilo Base (APAGADO) */
-        div[role="radiogroup"] label {
+        /* 3. Estilo Base de la Pastilla (APAGADO) */
+        div[role="radio"] {
             background-color: #111111 !important;
             border: 2px solid #333333 !important;
-            border-radius: 6px !important;
-            padding: 12px 24px !important;
-            transition: all 0.2s ease;
+            border-radius: 8px !important; /* Bordes suaves */
+            padding: 10px 24px !important;
             cursor: pointer !important;
-        }
-        div[role="radiogroup"] label p {
-            color: #888888 !important; /* Texto gris apagado */
+            transition: all 0.2s ease !important;
             margin: 0 !important;
         }
+        
+        /* Texto Base */
+        div[role="radio"] p {
+            color: #888888 !important; /* Gris apagado */
+            margin: 0 !important;
+            font-weight: 500 !important;
+        }
 
-        /* 3. Estilo Seleccionado (ENCENDIDO - CELESTE KAUFMANN) */
-        div[role="radiogroup"] label:has(input[type="radio"]:checked) {
+        /* 4. Estilo Seleccionado (ENCENDIDO - CELESTE KAUFMANN) */
+        div[role="radio"][aria-checked="true"] {
             background-color: #00A2ED !important;
             border-color: #00A2ED !important;
-            box-shadow: 0 0 15px rgba(0, 162, 237, 0.4) !important; /* Resplandor */
+            box-shadow: 0 0 12px rgba(0, 162, 237, 0.4) !important; /* Resplandor */
         }
         
-        /* 4. Texto del botón Encendido */
-        div[role="radiogroup"] label:has(input[type="radio"]:checked) p {
-            color: #FFFFFF !important; /* Texto blanco puro */
+        /* Texto Seleccionado */
+        div[role="radio"][aria-checked="true"] p {
+            color: #FFFFFF !important; /* Blanco brillante */
             font-weight: bold !important;
         }
     </style>
