@@ -534,7 +534,8 @@ def render_app():
                 contactos_empresa = clientes_dict.get(rut_buscado, {}).get('Contactos', [])
                 
                 if len(contactos_empresa) > 1:
-                    st.markdown("👇 **Esta empresa tiene múltiples contactos. Elige uno:**")
+                    st.markdown("👇 **Esta empresa tiene múltiples contactos. Elige uno.
+                    Si quieres agregar más empresas, ve a la base de datos**")
                     opciones_contacto = [f"{c['Contacto']} - {c['Fono']}" for c in contactos_empresa]
                     
                     if 'contacto_previo' not in st.session_state:
