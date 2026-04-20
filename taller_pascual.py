@@ -482,44 +482,75 @@ def render_app():
             for c in clientes_db:
                 rut_str = str(c.get('RUT', '')).upper()
                 if rut_str and rut_str not in clientes_dict: 
+                    # Tolerancia por si la columna en Google Sheets tiene o no tilde
+                    dir_val = str(c.get('Direccion', c.get('Dirección', '')))
                     clientes_dict[rut_str] = {
                         'Nombre': c.get('Nombre', ''), 'RUT': c.get('RUT', ''), 
-                        'Direccion': c.get('Direccion', ''), 'Ciudad': c.get('Ciudad', ''), 
+                        'Direccion': dir_val, 'Ciudad': c.get('Ciudad', ''), 
                         'Comuna': c.get('Comuna', ''), 'Giro': c.get('Giro', ''), 
                         'Contacto': c.get('Contacto', ''), 'Fono': c.get('Fono', '')
                     }
             
             opciones_cli = ["--- Nuevo Cliente ---"] + [f"{datos['RUT']} | {datos['Nombre']}" for rut, datos in clientes_dict.items()]
-            sel_cli = st.selectbox("Cargar cliente guardado:", opciones_cli)
             
-            def_nombre = ""; def_rut = ""; def_dir = ""; def_ciu = "Temuco"; def_com = "Temuco"; def_giro = ""; def_contacto = ""; def_fono = ""
-            if sel_cli != "--- Nuevo Cliente ---":
-                rut_buscado = sel_cli.split(" | ")[0]
-                cli_data = clientes_dict.get(rut_buscado)
-                if cli_data:
-                    def_nombre = str(cli_data.get('Nombre', ''))
-                    def_rut = str(cli_data.get('RUT', ''))
-                    def_dir = str(cli_data.get('Direccion', ''))
-                    def_ciu = str(cli_data.get('Ciudad', ''))
-                    def_com = str(cli_data.get('Comuna', ''))
-                    def_giro = str(cli_data.get('Giro', ''))
-                    def_contacto = str(cli_data.get('Contacto', ''))
-                    def_fono = str(cli_data.get('Fono', ''))
+            # --- NUEVA LÓGICA DE ACTUALIZACIÓN DIRECTA A LA MEMORIA (SESSION STATE) ---
+            sel_cli = st.selectbox("Cargar cliente guardado:", opciones_cli, key="selector_cliente")
+            
+            if 'cliente_previo' not in st.session_state:
+                st.session_state.cliente_previo = "--- Nuevo Cliente ---"
+                
+            # Si el usuario cambia el menú desplegable, sobreescribimos la memoria a la fuerza
+            if st.session_state.selector_cliente != st.session_state.cliente_previo:
+                st.session_state.cliente_previo = st.session_state.selector_cliente
+                sel = st.session_state.selector_cliente
+                
+                if sel != "--- Nuevo Cliente ---":
+                    rut_buscado = sel.split(" | ")[0]
+                    cli_data = clientes_dict.get(rut_buscado)
+                    if cli_data:
+                        st.session_state.c_nombre = str(cli_data.get('Nombre', ''))
+                        st.session_state.c_rut = str(cli_data.get('RUT', ''))
+                        st.session_state.c_dir = str(cli_data.get('Direccion', ''))
+                        st.session_state.c_ciu = str(cli_data.get('Ciudad', ''))
+                        st.session_state.c_com = str(cli_data.get('Comuna', ''))
+                        st.session_state.c_giro = str(cli_data.get('Giro', ''))
+                        st.session_state.c_con = str(cli_data.get('Contacto', ''))
+                        st.session_state.c_fon = str(cli_data.get('Fono', ''))
+                else:
+                    st.session_state.c_nombre = ""
+                    st.session_state.c_rut = ""
+                    st.session_state.c_dir = ""
+                    st.session_state.c_ciu = "Temuco"
+                    st.session_state.c_com = "Temuco"
+                    st.session_state.c_giro = ""
+                    st.session_state.c_con = ""
+                    st.session_state.c_fon = ""
 
-            # Campos con claves asignadas para la limpieza automática
-            cliente_final = st.text_input("Señor(es) / Razón Social", value=def_nombre, key="c_nombre")
-            rut_empresa = st.text_input("RUT", value=def_rut, key="c_rut")
-            direccion = st.text_input("Dirección", value=def_dir, key="c_dir")
+            # Inicializamos los campos vacíos en memoria la primera vez que se abre la app
+            if 'c_nombre' not in st.session_state: st.session_state.c_nombre = ""
+            if 'c_rut' not in st.session_state: st.session_state.c_rut = ""
+            if 'c_dir' not in st.session_state: st.session_state.c_dir = ""
+            if 'c_ciu' not in st.session_state: st.session_state.c_ciu = "Temuco"
+            if 'c_com' not in st.session_state: st.session_state.c_com = "Temuco"
+            if 'c_giro' not in st.session_state: st.session_state.c_giro = ""
+            if 'c_con' not in st.session_state: st.session_state.c_con = ""
+            if 'c_fon' not in st.session_state: st.session_state.c_fon = ""
+
+            # Pintamos las cajas de texto que ahora leen y escriben directo a la memoria
+            cliente_final = st.text_input("Señor(es) / Razón Social", key="c_nombre")
+            rut_empresa = st.text_input("RUT", key="c_rut")
+            direccion = st.text_input("Dirección", key="c_dir")
             
             c_c1, c_c2 = st.columns(2)
-            ciudad = c_c1.text_input("Ciudad", value=def_ciu, key="c_ciu")
-            comuna = c_c2.text_input("Comuna", value=def_com, key="c_com")
+            ciudad = c_c1.text_input("Ciudad", key="c_ciu")
+            comuna = c_c2.text_input("Comuna", key="c_com")
             
-            giro = st.text_input("Giro Comercial", value=def_giro, key="c_giro")
+            giro = st.text_input("Giro Comercial", key="c_giro")
             
             c_f1, c_f2 = st.columns(2)
-            contacto_nombre = c_f1.text_input("Nombre Contacto", value=def_contacto, key="c_con")
-            contacto_fono = c_f2.text_input("Teléfono", value=def_fono, key="c_fon")
+            contacto_nombre = c_f1.text_input("Nombre Contacto", key="c_con")
+            contacto_fono = c_f2.text_input("Teléfono", key="c_fon")
+            # --------------------------------------------------------------------------
             
             condicion_pago = st.selectbox("Forma de Pago", ["Transferencia Electrónica", "Efectivo / Contado", "Tarjeta (Débito/Crédito)", "Orden de Compra (O/C)", "Crédito Directo a 30 días"], key="c_pago")
             vendedor_nombre = st.text_input("Vendedor", value="ANA MARIA RIQUELME", key="c_vend")
