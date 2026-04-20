@@ -77,17 +77,12 @@ def render_app():
     def btn_type(cristal):
         return "primary" if cristal in st.session_state.cristales_sel else "secondary"
 
-    # --- ESCOBA DIGITAL: LIMPIEZA TOTAL ---
     def reset_session():
-        # Preservamos las variables del sistema principal (Login)
         keys_to_keep = ['logueado', 'perfil']
-        
-        # Destruimos todas las memorias de los widgets de la app
         for key in list(st.session_state.keys()):
             if key not in keys_to_keep:
                 del st.session_state[key]
                 
-        # Reiniciamos las listas vacías para la nueva cotización
         st.session_state.cristales_sel = []
         st.session_state.items_productos = []
         st.session_state.items_servicios = []
@@ -177,8 +172,13 @@ def render_app():
             try:
                 sheet = client.open(NOMBRE_HOJA_GOOGLE)
                 ws = sheet.worksheet("Clientes")
+                # Revisar si el cliente y ese contacto específico ya existen para no duplicar
                 records = ws.get_all_records()
-                existe = any(str(r['RUT']).upper() == str(rut).upper() for r in records)
+                existe = any(
+                    str(r['RUT']).upper() == str(rut).upper() and 
+                    str(r.get('Contacto', '')).upper() == str(contacto).upper() 
+                    for r in records
+                )
                 if not existe:
                     ws.append_row([rut, nombre, direccion, ciudad, comuna, giro, contacto, fono])
                     st.cache_data.clear() 
@@ -249,7 +249,6 @@ def render_app():
         if tiene_siniestro: fila_dinamica_vehiculo(" N° Siniestro", str(datos_vehiculo.get('siniestro', '')).upper(), "", "", is_last=True)
         pdf.ln(6)
 
-        # --- CABECERA DE LA TABLA 5 COLUMNAS ---
         pdf.set_font('Arial', 'B', 9)
         pdf.set_fill_color(230, 230, 230)
         pdf.cell(90, 7, "Descripción", 1, 0, 'C', 1)
@@ -315,7 +314,7 @@ def render_app():
         return pdf.output(dest='S').encode('latin-1')
 
     # ==========================================
-    # 5. INTERFAZ DE USUARIO (UI) - OPTIMIZADA MOBILE
+    # 5. INTERFAZ DE USUARIO (UI)
     # ==========================================
     col_centro = st.columns([1, 4, 1])
 
@@ -329,9 +328,7 @@ def render_app():
             if st.button("🗑️ Limpiar", type="primary", use_container_width=True): reset_session()
         st.divider()
 
-        # DATOS VEHÍCULO - Apilado 2x2 para celular
         st.markdown("#### 🚗 1. Datos del Vehículo")
-        
         cv_1, cv_2 = st.columns(2)
         lista_marcas = list(BASE_VEHICULOS.keys())
         if "--- AGREGAR OTRA MARCA ---" not in lista_marcas: lista_marcas.append("--- AGREGAR OTRA MARCA ---")
@@ -356,7 +353,6 @@ def render_app():
 
         st.divider()
 
-        # SELECTOR DE CRISTALES Y SERVICIOS
         st.markdown("#### 🪟 2. Trabajos y Repuestos")
         tab1, tab2 = st.tabs(["📦 Cristales", "🔧 Servicios Extras"])
         
@@ -393,7 +389,6 @@ def render_app():
             for i, cristal in enumerate(cristales_a_procesar):
                 st.markdown(f"**Ajuste de Ítem: {cristal}**")
                 desc_sug = f"{cristal} {marca_final} {modelo_final}".strip()
-                
                 if "PARABRISAS" in cristal:
                     if camara_sel == "Sí": desc_sug += " C/CÁMARA"
                     if sensor_sel == "Sí": desc_sug += " C/SENSOR"
@@ -439,9 +434,7 @@ def render_app():
                     st.session_state.servicio_desc = ""
                     st.rerun()
 
-        # TOTAL Y WHATSAPP
         total_bruto = sum(x['Total'] for x in st.session_state.items_productos + st.session_state.items_servicios)
-        
         t_final = total_bruto
         desc_pct = 0
         
@@ -472,34 +465,44 @@ def render_app():
                     else: st.session_state.items_servicios.pop(idx - len(st.session_state.items_productos))
                     st.rerun()
 
-        # COTIZACIÓN FORMAL (PDF)
+        # ==========================================
+        # COTIZACIÓN FORMAL (PDF) CON MULTIPLES CONTACTOS
+        # ==========================================
         st.divider()
         with st.expander("🏢 Generar PDF Formal"):
             st.info("Ingresa los datos para armar el PDF.")
             
             clientes_db = obtener_clientes()
             clientes_dict = {}
+            
+            # --- NUEVA LÓGICA DE DICCIONARIO (AGRUPA CONTACTOS) ---
             for c in clientes_db:
                 rut_str = str(c.get('RUT', '')).upper()
-                if rut_str and rut_str not in clientes_dict: 
-                    # Tolerancia por si la columna en Google Sheets tiene o no tilde
-                    dir_val = str(c.get('Direccion', c.get('Dirección', '')))
-                    clientes_dict[rut_str] = {
-                        'Nombre': c.get('Nombre', ''), 'RUT': c.get('RUT', ''), 
-                        'Direccion': dir_val, 'Ciudad': c.get('Ciudad', ''), 
-                        'Comuna': c.get('Comuna', ''), 'Giro': c.get('Giro', ''), 
-                        'Contacto': c.get('Contacto', ''), 'Fono': c.get('Fono', '')
-                    }
+                if rut_str:
+                    if rut_str not in clientes_dict: 
+                        dir_val = str(c.get('Direccion', c.get('Dirección', '')))
+                        clientes_dict[rut_str] = {
+                            'Nombre': c.get('Nombre', ''), 'RUT': c.get('RUT', ''), 
+                            'Direccion': dir_val, 'Ciudad': c.get('Ciudad', ''), 
+                            'Comuna': c.get('Comuna', ''), 'Giro': c.get('Giro', ''), 
+                            'Contactos': [] # Lista para almacenar a Álvaro, Gabriel, etc.
+                        }
+                    
+                    contacto_val = str(c.get('Contacto', ''))
+                    fono_val = str(c.get('Fono', ''))
+                    
+                    # Evitamos agregar contactos vacíos o duplicados a la lista de esa empresa
+                    contacto_existe = any(x['Contacto'] == contacto_val and x['Fono'] == fono_val for x in clientes_dict[rut_str]['Contactos'])
+                    if not contacto_existe:
+                        clientes_dict[rut_str]['Contactos'].append({'Contacto': contacto_val, 'Fono': fono_val})
             
             opciones_cli = ["--- Nuevo Cliente ---"] + [f"{datos['RUT']} | {datos['Nombre']}" for rut, datos in clientes_dict.items()]
             
-            # --- NUEVA LÓGICA DE ACTUALIZACIÓN DIRECTA A LA MEMORIA (SESSION STATE) ---
             sel_cli = st.selectbox("Cargar cliente guardado:", opciones_cli, key="selector_cliente")
             
-            if 'cliente_previo' not in st.session_state:
-                st.session_state.cliente_previo = "--- Nuevo Cliente ---"
+            # 1. Al cambiar de Empresa, actualizamos datos fijos e inicializamos con el 1er contacto
+            if 'cliente_previo' not in st.session_state: st.session_state.cliente_previo = "--- Nuevo Cliente ---"
                 
-            # Si el usuario cambia el menú desplegable, sobreescribimos la memoria a la fuerza
             if st.session_state.selector_cliente != st.session_state.cliente_previo:
                 st.session_state.cliente_previo = st.session_state.selector_cliente
                 sel = st.session_state.selector_cliente
@@ -514,19 +517,41 @@ def render_app():
                         st.session_state.c_ciu = str(cli_data.get('Ciudad', ''))
                         st.session_state.c_com = str(cli_data.get('Comuna', ''))
                         st.session_state.c_giro = str(cli_data.get('Giro', ''))
-                        st.session_state.c_con = str(cli_data.get('Contacto', ''))
-                        st.session_state.c_fon = str(cli_data.get('Fono', ''))
+                        
+                        # Si tiene contactos, cargamos el primero por defecto
+                        if cli_data['Contactos']:
+                            st.session_state.c_con = str(cli_data['Contactos'][0]['Contacto'])
+                            st.session_state.c_fon = str(cli_data['Contactos'][0]['Fono'])
+                            st.session_state.contacto_previo = f"{cli_data['Contactos'][0]['Contacto']} - {cli_data['Contactos'][0]['Fono']}"
                 else:
-                    st.session_state.c_nombre = ""
-                    st.session_state.c_rut = ""
-                    st.session_state.c_dir = ""
-                    st.session_state.c_ciu = "Temuco"
-                    st.session_state.c_com = "Temuco"
-                    st.session_state.c_giro = ""
-                    st.session_state.c_con = ""
-                    st.session_state.c_fon = ""
+                    st.session_state.c_nombre = ""; st.session_state.c_rut = ""; st.session_state.c_dir = ""
+                    st.session_state.c_ciu = "Temuco"; st.session_state.c_com = "Temuco"; st.session_state.c_giro = ""
+                    st.session_state.c_con = ""; st.session_state.c_fon = ""
 
-            # Inicializamos los campos vacíos en memoria la primera vez que se abre la app
+            # 2. Si la empresa seleccionada tiene múltiples contactos, mostramos el menú secundario
+            if sel_cli != "--- Nuevo Cliente ---":
+                rut_buscado = sel_cli.split(" | ")[0]
+                contactos_empresa = clientes_dict.get(rut_buscado, {}).get('Contactos', [])
+                
+                if len(contactos_empresa) > 1:
+                    st.markdown("👇 **Esta empresa tiene múltiples contactos. Elige uno:**")
+                    opciones_contacto = [f"{c['Contacto']} - {c['Fono']}" for c in contactos_empresa]
+                    
+                    if 'contacto_previo' not in st.session_state:
+                         st.session_state.contacto_previo = opciones_contacto[0]
+                         
+                    sel_contacto = st.selectbox("Seleccionar Contacto:", opciones_contacto, key="selector_contacto")
+                    
+                    # Si cambian el contacto en el menú secundario, actualizamos el texto y fono
+                    if sel_contacto != st.session_state.contacto_previo:
+                        st.session_state.contacto_previo = sel_contacto
+                        idx_contacto = opciones_contacto.index(sel_contacto)
+                        st.session_state.c_con = str(contactos_empresa[idx_contacto]['Contacto'])
+                        st.session_state.c_fon = str(contactos_empresa[idx_contacto]['Fono'])
+
+            st.divider()
+
+            # --- INICIALIZACIÓN DE VARIABLES PARA LA UI ---
             if 'c_nombre' not in st.session_state: st.session_state.c_nombre = ""
             if 'c_rut' not in st.session_state: st.session_state.c_rut = ""
             if 'c_dir' not in st.session_state: st.session_state.c_dir = ""
@@ -536,7 +561,7 @@ def render_app():
             if 'c_con' not in st.session_state: st.session_state.c_con = ""
             if 'c_fon' not in st.session_state: st.session_state.c_fon = ""
 
-            # Pintamos las cajas de texto que ahora leen y escriben directo a la memoria
+            # --- RENDERIZADO DEL FORMULARIO ---
             cliente_final = st.text_input("Señor(es) / Razón Social", key="c_nombre")
             rut_empresa = st.text_input("RUT", key="c_rut")
             direccion = st.text_input("Dirección", key="c_dir")
@@ -550,7 +575,6 @@ def render_app():
             c_f1, c_f2 = st.columns(2)
             contacto_nombre = c_f1.text_input("Nombre Contacto", key="c_con")
             contacto_fono = c_f2.text_input("Teléfono", key="c_fon")
-            # --------------------------------------------------------------------------
             
             condicion_pago = st.selectbox("Forma de Pago", ["Transferencia Electrónica", "Efectivo / Contado", "Tarjeta (Débito/Crédito)", "Orden de Compra (O/C)", "Crédito Directo a 30 días"], key="c_pago")
             vendedor_nombre = st.text_input("Vendedor", value="ANA MARIA RIQUELME", key="c_vend")
