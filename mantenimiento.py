@@ -92,7 +92,7 @@ def render_app():
     """, unsafe_allow_html=True)
 
     st.title("🛠️ Pautas de Mantenimiento")
-    st.info("Toca las opciones para configurar el vehículo. El teclado ya no será una molestia.")
+    st.info("Toca las opciones para configurar el vehículo.")
 
     SPREADSHEET_ID = "1jqMJ7i_tS-lpOvlAMAtzwj-Wcpk68arrWBaJOtBVUzA"
 
